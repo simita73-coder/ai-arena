@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>MI-Aréna Web v1.0</title>
+<title>MI-Aréna Web v1.1</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -20,10 +20,15 @@ button.danger{color:var(--err)}
 .brand small{color:var(--mut);font-weight:400}
 .bar-btns{display:flex;gap:6px}
 .bar-btns button{min-width:38px;min-height:36px;font-size:16px}
-.chips{display:flex;gap:6px;overflow-x:auto;padding:8px 8px 4px;scrollbar-width:none;flex:0 0 auto}
+.navrow{display:flex;align-items:center;gap:6px;padding:8px 8px 4px;flex:0 0 auto}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:0 0 auto;max-width:65vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:999px;font-size:13px;padding:4px 12px}
 .chip.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.tier{flex:0 0 auto;border-radius:999px;font-weight:700;padding:5px 12px;font-size:13px;white-space:nowrap;color:#fff}
+.tier.strong{background:#6a1b9a;border-color:#6a1b9a}
+.tier.cheap{background:#00695c;border-color:#00695c}
+.mlbl{font-size:12px;color:var(--mut);margin-bottom:-2px}
 .deck{flex:1;min-height:0;display:flex;gap:8px;padding:4px 8px 8px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
 .panel{flex:0 0 100%;scroll-snap-align:center;display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 @media (min-width:900px){.panel{flex:1 0 380px;scroll-snap-align:start}.chip{max-width:30vw}}
@@ -89,7 +94,7 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ MI-Aréna <small>Web v1.0</small></div>
+  <div class="brand">⚔️ MI-Aréna <small>Web v1.1</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
@@ -97,7 +102,7 @@ dialog::backdrop{background:#0008}
     <button id="bSet" title="Beállítások">⚙</button>
   </div>
 </header>
-<nav id="chips" class="chips"></nav>
+<div class="navrow"><button id="bTier" class="tier cheap" type="button" title="Váltás az erős és az olcsó modellek között">💰 Olcsó</button><nav id="chips" class="chips"></nav></div>
 <main id="deck" class="deck"></main>
 <footer class="composer">
   <div id="atts" class="atts"></div>
@@ -130,27 +135,35 @@ const MODES = {
 
 /* Új szolgáltató felvételéhez: ide kerül egy új bejegyzés + egy call/list függvény */
 const PROVIDERS = {
-  gemini:    { label: 'Gemini', keyLabel: 'Gemini API-kulcs', defaults: ['gemini-3.1-pro', 'gemini-2.5-flash'], call: callGemini, list: listGemini },
-  openai:    { label: 'GPT',    keyLabel: 'OpenAI (GPT) API-kulcs', defaults: ['gpt-4o-mini', 'gpt-4o'], call: callOpenAI, list: listOpenAI },
-  anthropic: { label: 'Claude', keyLabel: 'Anthropic (Claude) API-kulcs', defaults: ['claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-opus-5-5'], call: callAnthropic, list: listAnthropic }
+  gemini:    { label: 'Gemini', keyLabel: 'Gemini API-kulcs', strong: 'gemini-3.1-pro-preview', cheap: 'gemini-3.8-flash',
+               suggest: ['gemini-3.1-pro-preview', 'gemini-4-argon', 'gemini-pro-latest', 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'],
+               call: callGemini, list: listGemini },
+  openai:    { label: 'GPT',    keyLabel: 'OpenAI (GPT) API-kulcs', strong: 'gpt-6-astra', cheap: 'gpt-6-luna',
+               suggest: ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.5-pro', 'gpt-5.5'],
+               call: callOpenAI, list: listOpenAI },
+  anthropic: { label: 'Claude', keyLabel: 'Anthropic (Claude) API-kulcs', strong: 'claude-fable-5-1', cheap: 'claude-haiku-5-5',
+               suggest: ['claude-fable-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
+               call: callAnthropic, list: listAnthropic }
 };
+const TIERS = { strong: { icon: '💪', label: 'Erős' }, cheap: { icon: '💰', label: 'Olcsó' } };
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 /* ============ Beállítások tárolása ============ */
+function slotDefault(id, provider) {
+  const P = PROVIDERS[provider];
+  return { id, provider, models: { strong: P.strong, cheap: P.cheap }, mode: 'Gyors', active: true };
+}
 function defaults() {
   return {
     theme: null,
+    tier: 'cheap',
     keys: { gemini: '', openai: '', anthropic: '' },
     maxTokens: 4096,
     models: {},
     nextId: 4,
-    slots: [
-      { id: 1, provider: 'gemini',    model: 'gemini-3.1-pro',    mode: 'Gyors', active: true },
-      { id: 2, provider: 'openai',    model: 'gpt-4o-mini',       mode: 'Gyors', active: true },
-      { id: 3, provider: 'anthropic', model: 'claude-sonnet-5-5', mode: 'Gyors', active: true }
-    ]
+    slots: [slotDefault(1, 'gemini'), slotDefault(2, 'openai'), slotDefault(3, 'anthropic')]
   };
 }
 function loadSettings() {
@@ -159,13 +172,17 @@ function loadSettings() {
     const raw = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
     if (raw && typeof raw === 'object') {
       if (raw.theme) d.theme = raw.theme;
+      if (raw.tier === 'strong' || raw.tier === 'cheap') d.tier = raw.tier;
       if (raw.keys) Object.keys(d.keys).forEach(k => { if (typeof raw.keys[k] === 'string') d.keys[k] = raw.keys[k]; });
       if (raw.maxTokens) d.maxTokens = +raw.maxTokens || 4096;
       if (raw.models && typeof raw.models === 'object') d.models = raw.models;
       if (Array.isArray(raw.slots) && raw.slots.length) {
-        d.slots = raw.slots.filter(s => PROVIDERS[s.provider]).map(s => ({
-          id: +s.id, provider: s.provider, model: String(s.model || ''), mode: MODES[s.mode] ? s.mode : 'Gyors', active: !!s.active
-        }));
+        d.slots = raw.slots.filter(s => PROVIDERS[s.provider]).map(s => {
+          const P = PROVIDERS[s.provider], m = s.models || {};   // a régi (1.0-s) mentésben nincs "models": ott az ajánlott pár kerül be
+          return { id: +s.id, provider: s.provider,
+                   models: { strong: String(m.strong || P.strong), cheap: String(m.cheap || P.cheap) },
+                   mode: MODES[s.mode] ? s.mode : 'Gyors', active: !!s.active };
+        });
         if (!d.slots.length) d.slots = defaults().slots;
         d.nextId = Math.max(d.nextId, raw.nextId || 0, ...d.slots.map(s => s.id + 1));
       }
@@ -173,6 +190,7 @@ function loadSettings() {
   } catch (e) {}
   return d;
 }
+const modelOf = s => (s.models && s.models[S.tier]) || PROVIDERS[s.provider][S.tier];
 function saveSettings() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { toast('A beállítások mentése nem sikerült.'); } }
 
 let S = loadSettings();
@@ -286,6 +304,7 @@ function paintBody(id) {
   const users = body.querySelectorAll('.msg.user');
   if (users.length) body.scrollTop = Math.max(0, users[users.length - 1].offsetTop - 8);
 }
+let curId = null;
 function renderDeck() {
   deck.innerHTML = '';
   const act = S.slots.filter(s => s.active);
@@ -295,7 +314,7 @@ function renderDeck() {
   act.forEach(s => {
     const p = document.createElement('section');
     p.className = 'panel'; p.dataset.id = s.id;
-    p.innerHTML = '<div class="phead"><span class="pname">' + esc(PROVIDERS[s.provider].label) + '</span><span class="pmodel">' + esc(s.model) +
+    p.innerHTML = '<div class="phead"><span class="pname">' + esc(PROVIDERS[s.provider].label) + '</span><span class="pmodel">' + esc(modelOf(s)) +
       '</span><span class="pmode">' + esc(s.mode) + '</span><button type="button" data-act="copy" title="Utolsó válasz másolása">📋</button>' +
       '<button type="button" data-act="reset" title="Ennek az ablaknak az újraindítása">↺</button></div><div class="pbody"></div>';
     deck.appendChild(p);
@@ -310,11 +329,25 @@ function renderDeck() {
 }
 function renderChips() {
   $('chips').innerHTML = S.slots.filter(s => s.active).map(s =>
-    '<button type="button" class="chip" data-id="' + s.id + '">' + esc(PROVIDERS[s.provider].label + ' · ' + s.model) + '</button>').join('');
+    '<button type="button" class="chip" data-id="' + s.id + '">' + esc(PROVIDERS[s.provider].label + ' · ' + modelOf(s)) + '</button>').join('');
+  if (curId != null) setActiveChip(curId);
+}
+function updateTierBtn() {
+  const b = $('bTier'), t = TIERS[S.tier];
+  b.textContent = t.icon + ' ' + t.label;
+  b.className = 'tier ' + S.tier;
+}
+function updateLabels() {   // váltáskor csak a feliratok frissülnek, a panelek és a válaszok maradnak
+  S.slots.filter(s => s.active).forEach(s => {
+    const el = deck.querySelector('.panel[data-id="' + s.id + '"] .pmodel');
+    if (el) el.textContent = modelOf(s);
+  });
+  renderChips(); updateTierBtn();
 }
 function setActiveChip(id) {
+  curId = String(id);
   document.querySelectorAll('#chips .chip').forEach(c => {
-    const on = c.dataset.id === String(id);
+    const on = c.dataset.id === curId;
     c.classList.toggle('on', on);
     if (on) { try { c.scrollIntoView({ inline: 'center', block: 'nearest' }); } catch (e) {} }
   });
@@ -394,12 +427,24 @@ async function httpError(res) {
   try { const j = await res.json(); msg = (j.error && (j.error.message || j.error)) || j.message || JSON.stringify(j).slice(0, 300); }
   catch (e) { msg = res.statusText || ''; }
   if (typeof msg !== 'string') msg = JSON.stringify(msg).slice(0, 300);
-  return new Error('HTTP ' + res.status + ': ' + msg);
+  const err = new Error('HTTP ' + res.status + ': ' + msg);
+  err.status = res.status;
+  return err;
 }
 const tokStr = (a, b) => (a != null ? a : '?') + ' → ' + (b != null ? b : '?') + ' token';
+const byNewest = (a, b) => b.localeCompare(a, 'en', { numeric: true });
+const RESP_ONLY = /(^|-)pro($|-)|codex/;   // a -pro és -codex modellek csak a Responses API-n érhetők el
 
 async function callOpenAI(slot, hist, t, sys, signal) {
   const key = S.keys.openai; if (!key) throw new Error('Hiányzik az OpenAI API-kulcs (⚙ Beállítások).');
+  if (RESP_ONLY.test(slot.model)) return openaiResponses(slot, hist, t, sys, signal, key);
+  try { return await openaiChat(slot, hist, t, sys, signal, key); }
+  catch (e) {
+    if (e.status === 404 && /v1\/responses/.test(e.message)) return openaiResponses(slot, hist, t, sys, signal, key);
+    throw e;
+  }
+}
+async function openaiChat(slot, hist, t, sys, signal, key) {
   const imgs = t.files.filter(f => f.kind === 'image'), pdfs = t.files.filter(f => f.kind === 'pdf');
   let content = t.fullText;
   if (imgs.length || pdfs.length) {
@@ -412,6 +457,21 @@ async function callOpenAI(slot, hist, t, sys, signal) {
   if (!res.ok) throw await httpError(res);
   const d = await res.json(), ch = d.choices && d.choices[0], u = d.usage || {};
   return { text: (ch && ch.message && (ch.message.content || ch.message.refusal)) || '', usage: tokStr(u.prompt_tokens, u.completion_tokens), note: ch && ch.finish_reason === 'length' ? 'a válasz elérte a hosszkorlátot' : '' };
+}
+async function openaiResponses(slot, hist, t, sys, signal, key) {
+  const imgs = t.files.filter(f => f.kind === 'image'), pdfs = t.files.filter(f => f.kind === 'pdf');
+  const parts = [{ type: 'input_text', text: t.fullText }]
+    .concat(imgs.map(f => ({ type: 'input_image', image_url: 'data:' + f.mime + ';base64,' + f.b64 })))
+    .concat(pdfs.map(f => ({ type: 'input_file', filename: f.name, file_data: 'data:application/pdf;base64,' + f.b64 })));
+  const body = { model: slot.model, instructions: sys, input: hist.map(h => ({ role: h.role, content: h.text })).concat([{ role: 'user', content: parts }]) };
+  const res = await fetch('https://api.openai.com/v1/responses', { method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: JSON.stringify(body) });
+  if (!res.ok) throw await httpError(res);
+  const d = await res.json(), u = d.usage || {};
+  const text = (d.output || []).filter(o => o.type === 'message').reduce((a, o) => a.concat(o.content || []), [])
+    .map(c => c.type === 'output_text' ? c.text : c.type === 'refusal' ? c.refusal : '').join('');
+  let note = '';
+  if (d.status === 'incomplete') note = 'félbeszakadt: ' + ((d.incomplete_details && d.incomplete_details.reason) || 'ismeretlen ok');
+  return { text, usage: tokStr(u.input_tokens, u.output_tokens), note };
 }
 
 async function callAnthropic(slot, hist, t, sys, signal) {
@@ -429,7 +489,7 @@ async function callAnthropic(slot, hist, t, sys, signal) {
 
 async function callGemini(slot, hist, t, sys, signal) {
   const key = S.keys.gemini; if (!key) throw new Error('Hiányzik a Gemini API-kulcs (⚙ Beállítások).');
-  const model = slot.model.replace(/^models\//, '').replace(/^gemini\//, 'gemini-').replace(/^gemini-gemini-/, 'gemini-');
+  const model = slot.model.replace(/^models\//, '').replace(/^gemini\//, '');
   const parts = [{ text: t.fullText }].concat(t.files.filter(f => f.kind === 'image' || f.kind === 'pdf').map(f => ({ inline_data: { mime_type: f.mime, data: f.b64 } })));
   const body = {
     system_instruction: { parts: [{ text: sys }] },
@@ -445,11 +505,16 @@ async function callGemini(slot, hist, t, sys, signal) {
   return { text, usage: tokStr(u.promptTokenCount, u.candidatesTokenCount), note };
 }
 
+// A lekérdezett listákból kiszűrjük, ami nem szöveges csevegésre való (hang, kép, keresés, robotika stb.)
 async function listOpenAI(key) {
   const res = await fetch('https://api.openai.com/v1/models', { headers: { 'Authorization': 'Bearer ' + key } });
   if (!res.ok) throw await httpError(res);
   const d = await res.json();
-  return (d.data || []).map(m => m.id).filter(id => /^(gpt|o\d|chatgpt)/.test(id) && !/(embedding|tts|whisper|audio|realtime|transcribe|image|moderation|instruct)/.test(id)).sort().reverse();
+  return (d.data || []).map(m => m.id)
+    .filter(id => /^(gpt|o\d|chatgpt)/.test(id))
+    .filter(id => !/(embedding|tts|whisper|audio|realtime|transcribe|image|moderation|instruct|search|live)/.test(id))
+    .filter(id => !/-\d{4}-\d{2}-\d{2}$/.test(id))
+    .sort((a, b) => (/^gpt/.test(b) - /^gpt/.test(a)) || byNewest(a, b));
 }
 async function listAnthropic(key) {
   const res = await fetch('https://api.anthropic.com/v1/models?limit=1000', { headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' } });
@@ -461,7 +526,10 @@ async function listGemini(key) {
   const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000', { headers: { 'x-goog-api-key': key } });
   if (!res.ok) throw await httpError(res);
   const d = await res.json();
-  return (d.models || []).filter(m => /gemini/.test(m.name) && (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace(/^models\//, '')).sort().reverse();
+  return (d.models || []).filter(m => /gemini/.test(m.name) && (m.supportedGenerationMethods || []).includes('generateContent'))
+    .map(m => m.name.replace(/^models\//, ''))
+    .filter(id => !/(tts|image|transcribe|robotics|computer-use|nano-banana|embedding|native-audio|live)/.test(id))
+    .sort(byNewest);
 }
 
 function friendlyError(e) {
@@ -473,20 +541,21 @@ function friendlyError(e) {
 /* ============ Küldés ============ */
 async function runSlot(slot, turn) {
   const c = getConvo(slot.id);
+  const eff = Object.assign({}, slot, { model: modelOf(slot) });   // a küldéskor érvényes modell
   c.view.push({ role: 'user', text: turn.prompt, files: turn.names });
   c.view.push({ role: 'wait' });
   paintBody(slot.id);
   const ctrl = new AbortController(); controllers.push(ctrl);
   const t0 = performance.now();
   try {
-    const r = await PROVIDERS[slot.provider].call(slot, c.history, turn, MODES[slot.mode] || MODES['Gyors'], ctrl.signal);
+    const r = await PROVIDERS[slot.provider].call(eff, c.history, turn, MODES[slot.mode] || MODES['Gyors'], ctrl.signal);
     c.view = c.view.filter(v => v.role !== 'wait');
     const sec = ((performance.now() - t0) / 1000).toFixed(1);
-    c.view.push({ role: 'ai', text: r.text || '(üres válasz)', meta: r.usage + ' · ' + sec + ' mp' + (r.note ? ' · ' + r.note : '') });
+    c.view.push({ role: 'ai', model: eff.model, text: r.text || '(üres válasz)', meta: eff.model + ' · ' + r.usage + ' · ' + sec + ' mp' + (r.note ? ' · ' + r.note : '') });
     c.history.push({ role: 'user', text: turn.prompt + turn.note }, { role: 'assistant', text: r.text });
   } catch (e) {
     c.view = c.view.filter(v => v.role !== 'wait');
-    c.view.push({ role: 'err', text: friendlyError(e) });
+    c.view.push({ role: 'err', text: '[' + eff.model + '] ' + friendlyError(e) });
   }
   paintBody(slot.id);
 }
@@ -536,8 +605,8 @@ $('bExp').addEventListener('click', () => {
   S.slots.filter(s => s.active).forEach(s => {
     const v = getConvo(s.id).view.filter(x => x.role === 'user' || x.role === 'ai' || x.role === 'err');
     if (!v.length) return;
-    out += 'DÁTUM: ' + stamp + '\nMI MODELL: ' + PROVIDERS[s.provider].label + ' – ' + s.model + ' (' + s.mode + ')\n\n';
-    v.forEach(x => { out += (x.role === 'user' ? 'KÉRDÉS:\n' : x.role === 'ai' ? 'VÁLASZ:\n' : 'HIBA:\n') + x.text + '\n\n'; });
+    out += 'DÁTUM: ' + stamp + '\nMI: ' + PROVIDERS[s.provider].label + ' (' + s.mode + ')\n\n';
+    v.forEach(x => { out += (x.role === 'user' ? 'KÉRDÉS:\n' : x.role === 'ai' ? 'VÁLASZ' + (x.model ? ' (' + x.model + ')' : '') + ':\n' : 'HIBA:\n') + x.text + '\n\n'; });
     out += '='.repeat(70) + '\n\n';
   });
   if (!out) { toast('Még nincs mit menteni.'); return; }
@@ -552,19 +621,22 @@ let draft = null;
 const dlg = $('dlg');
 
 function modelOptions(provider, current) {
-  const set = new Set([].concat(draft.models[provider] || [], PROVIDERS[provider].defaults));
+  const set = new Set([].concat(PROVIDERS[provider].suggest, draft.models[provider] || []));
   if (current) set.add(current);
   return Array.from(set);
 }
+function modelSelect(field, s) {
+  const cur = s.models[field];
+  const opts = modelOptions(s.provider, cur).map(m => '<option value="' + esc(m) + '"' + (m === cur ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
+  return '<span class="mlbl">' + TIERS[field].icon + ' ' + TIERS[field].label + ' modell</span><select data-f="' + field + '">' + opts + '<option value="__custom">✎ Egyéni modellnév…</option></select>';
+}
 function renderRows() {
-  $('rows').innerHTML = draft.slots.map((s, i) => {
-    const opts = modelOptions(s.provider, s.model).map(m => '<option value="' + esc(m) + '"' + (m === s.model ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
-    return '<div class="srow" data-i="' + i + '"><div class="sline"><label class="chk"><input type="checkbox" data-f="active"' + (s.active ? ' checked' : '') + '> ' + (i + 1) + '. ablak aktív</label>' +
-      '<button type="button" class="danger" data-del="' + i + '">Törlés</button></div>' +
-      '<select data-f="provider">' + Object.keys(PROVIDERS).map(k => '<option value="' + k + '"' + (k === s.provider ? ' selected' : '') + '>' + esc(PROVIDERS[k].label) + '</option>').join('') + '</select>' +
-      '<select data-f="model">' + opts + '<option value="__custom">✎ Egyéni modellnév…</option></select>' +
-      '<select data-f="mode">' + Object.keys(MODES).map(k => '<option' + (k === s.mode ? ' selected' : '') + '>' + k + '</option>').join('') + '</select></div>';
-  }).join('');
+  $('rows').innerHTML = draft.slots.map((s, i) =>
+    '<div class="srow" data-i="' + i + '"><div class="sline"><label class="chk"><input type="checkbox" data-f="active"' + (s.active ? ' checked' : '') + '> ' + (i + 1) + '. ablak aktív</label>' +
+    '<button type="button" class="danger" data-del="' + i + '">Törlés</button></div>' +
+    '<select data-f="provider">' + Object.keys(PROVIDERS).map(k => '<option value="' + k + '"' + (k === s.provider ? ' selected' : '') + '>' + esc(PROVIDERS[k].label) + '</option>').join('') + '</select>' +
+    modelSelect('strong', s) + modelSelect('cheap', s) +
+    '<select data-f="mode">' + Object.keys(MODES).map(k => '<option' + (k === s.mode ? ' selected' : '') + '>' + k + '</option>').join('') + '</select></div>').join('');
 }
 function openSettings() {
   draft = JSON.parse(JSON.stringify(S));
@@ -572,7 +644,7 @@ function openSettings() {
     '<p class="note">Az API-kulcsok csak ebben a böngészőben (helyi tárolóban) maradnak, a kódban nincsenek. Minden eszközön külön kell megadni őket. A szolgáltatóknál érdemes költséghatárt beállítani.</p>' +
     Object.keys(PROVIDERS).map(k => '<label class="fld"><span>' + esc(PROVIDERS[k].keyLabel) + '</span><div class="inl"><input type="password" id="key-' + k + '" autocomplete="off" spellcheck="false" value="' + esc(draft.keys[k] || '') + '"><button type="button" class="ic" data-show="' + k + '">👁</button></div></label>').join('') +
     '<label class="fld"><span>Claude max. válaszhossz (token)</span><input type="number" id="maxTok" min="256" max="64000" step="256" value="' + (+draft.maxTokens || 4096) + '"></label>' +
-    '<h3>Ablakok</h3><div id="rows"></div>' +
+    '<h3>Ablakok</h3><p class="note">Mindegyik AI-nak két modellje van: 💪 erős és 💰 olcsó. A főképernyőn a bal felső gombbal váltasz köztük.</p><div id="rows"></div>' +
     '<div class="inl"><button type="button" id="addSlot">+ Ablak</button><button type="button" id="fetchModels">🔄 Modellek lekérdezése</button></div>' +
     '<div class="inl"><button type="button" id="clearKeys" class="danger">Kulcsok törlése</button></div>';
   renderRows();
@@ -587,10 +659,10 @@ dlg.addEventListener('change', e => {
   const i = +e.target.closest('.srow').dataset.i, s = draft.slots[i];
   if (f === 'active') s.active = e.target.checked;
   else if (f === 'mode') s.mode = e.target.value;
-  else if (f === 'provider') { s.provider = e.target.value; s.model = (draft.models[s.provider] && draft.models[s.provider][0]) || PROVIDERS[s.provider].defaults[0]; renderRows(); }
-  else if (f === 'model') {
-    if (e.target.value === '__custom') { const n = (prompt('Add meg a pontos modellnevet:', s.model) || '').trim(); if (n) s.model = n; renderRows(); }
-    else s.model = e.target.value;
+  else if (f === 'provider') { s.provider = e.target.value; s.models = { strong: PROVIDERS[s.provider].strong, cheap: PROVIDERS[s.provider].cheap }; renderRows(); }
+  else if (f === 'strong' || f === 'cheap') {
+    if (e.target.value === '__custom') { const n = (prompt('Add meg a pontos modellnevet:', s.models[f]) || '').trim(); if (n) s.models[f] = n; renderRows(); }
+    else s.models[f] = e.target.value;
   }
 });
 dlg.addEventListener('click', async e => {
@@ -602,7 +674,7 @@ dlg.addEventListener('click', async e => {
   }
   if (t.id === 'addSlot') {
     if (draft.slots.length >= MAX_SLOTS) { toast('Legfeljebb ' + MAX_SLOTS + ' ablak lehet.'); return; }
-    draft.slots.push({ id: draft.nextId++, provider: 'gemini', model: PROVIDERS.gemini.defaults[0], mode: 'Gyors', active: true }); renderRows(); return;
+    draft.slots.push(slotDefault(draft.nextId++, 'gemini')); renderRows(); return;
   }
   if (t.id === 'clearKeys') {
     if (!confirm('Törlöd az összes elmentett API-kulcsot erről az eszközről?')) return;
@@ -625,14 +697,21 @@ dlg.addEventListener('click', async e => {
 $('dCancel').addEventListener('click', () => dlg.close());
 $('dSave').addEventListener('click', () => {
   readKeysFromInputs();
-  draft.slots.forEach(s => { if (!s.model) s.model = PROVIDERS[s.provider].defaults[0]; });
-  S = draft; saveSettings(); dlg.close(); renderDeck(); toast('Beállítások elmentve');
+  draft.slots.forEach(s => { const P = PROVIDERS[s.provider]; s.models.strong = s.models.strong || P.strong; s.models.cheap = s.models.cheap || P.cheap; });
+  S = draft; saveSettings(); dlg.close(); renderDeck(); updateTierBtn(); toast('Beállítások elmentve');
 });
 $('bSet').addEventListener('click', openSettings);
 
 /* ============ Indulás ============ */
+$('bTier').addEventListener('click', () => {
+  if (busy) { toast('Várd meg a válaszokat, vagy nyomd meg a Leállít gombot.'); return; }
+  S.tier = S.tier === 'strong' ? 'cheap' : 'strong';
+  saveSettings(); updateLabels();
+  toast(TIERS[S.tier].icon + ' ' + TIERS[S.tier].label + ': ' + S.slots.filter(x => x.active).map(x => modelOf(x)).join(' · '));
+});
 applyTheme();
 renderDeck();
+updateTierBtn();
 if (!S.keys.gemini && !S.keys.openai && !S.keys.anthropic) setTimeout(() => toast('Első lépés: ⚙ → API-kulcsok megadása'), 600);
 })();
 </script>
