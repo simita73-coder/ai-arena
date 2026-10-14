@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>MI-Aréna Web v1.1</title>
+<title>MI-Aréna Web v1.2</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -23,7 +23,12 @@ button.danger{color:var(--err)}
 .navrow{display:flex;align-items:center;gap:6px;padding:8px 8px 4px;flex:0 0 auto}
 .chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
 .chips::-webkit-scrollbar{display:none}
-.chip{flex:0 0 auto;max-width:65vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:999px;font-size:13px;padding:4px 12px}
+.chip{flex:0 0 auto;max-width:72vw;display:flex;align-items:center;gap:7px;background:var(--head);border:1px solid var(--line);border-radius:999px;font-size:13px;padding:3px 12px 3px 8px;cursor:pointer}
+.chip .cl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:3px 0}
+.chip .ck{width:20px;height:20px;margin:0;flex:0 0 auto;accent-color:#2e7d32}
+.chip.off{opacity:.55}
+.chip.off .cl{text-decoration:line-through}
+.panel.off .pbody{opacity:.5}
 .chip.on{background:var(--ok);border-color:var(--ok);color:#fff}
 .tier{flex:0 0 auto;border-radius:999px;font-weight:700;padding:5px 12px;font-size:13px;white-space:nowrap;color:#fff}
 .tier.strong{background:#6a1b9a;border-color:#6a1b9a}
@@ -32,6 +37,19 @@ button.danger{color:var(--err)}
 .deck{flex:1;min-height:0;display:flex;gap:8px;padding:4px 8px 8px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
 .panel{flex:0 0 100%;scroll-snap-align:center;display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 @media (min-width:900px){.panel{flex:1 0 380px;scroll-snap-align:start}.chip{max-width:30vw}}
+.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.src{font-size:12px;color:var(--mut);margin:-6px 0 12px}
+.src ol{margin:2px 0 0;padding-left:20px}
+.src a{color:var(--acc);overflow-wrap:anywhere}
+.fback{display:none}
+html.full,body.full{height:auto}
+body.full{display:block;overflow:auto}
+body.full .bar,body.full .navrow,body.full .composer{display:none}
+body.full .deck{display:block;overflow:visible;padding:8px}
+body.full .panel{display:none}
+body.full .panel.fp{display:block;overflow:visible}
+body.full .panel.fp .pbody{overflow:visible}
+body.full .fback{display:block;margin:4px 8px 24px;width:calc(100% - 16px);padding:12px}
 .phead{display:flex;align-items:center;gap:6px;background:var(--head);padding:6px 8px;flex:0 0 auto}
 .pname{font-weight:700;color:var(--acc)}
 .pmodel{color:var(--mut);font-size:12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -94,7 +112,7 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ MI-Aréna <small>Web v1.1</small></div>
+  <div class="brand">⚔️ MI-Aréna <small>Web v1.2</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
@@ -108,11 +126,13 @@ dialog::backdrop{background:#0008}
   <div id="atts" class="atts"></div>
   <div class="crow">
     <button id="bAtt" class="ic" title="Kép / PDF / szövegfájl csatolása">📎</button>
+    <button id="bWeb" class="ic" type="button" title="Webes keresés (a küldéskor mindhárom AI-nál)">🌐</button>
     <textarea id="inp" rows="1" placeholder="Kérdés…"></textarea>
     <button id="bSend" class="send">Küldés</button>
   </div>
   <input id="file" type="file" hidden multiple accept="image/*,application/pdf,.pdf,.txt,.md,.csv,.json,.py,.js,.ts,.html,.css,.xml,.yml,.yaml,.ini,.log,.sql,.bat,.sh,.cfg,.toml">
 </footer>
+<button id="fBack" class="fback" type="button">↩ Vissza a lapozható nézethez</button>
 <dialog id="dlg"><div class="dlg-in"><div id="dlgBody" class="dlg-body"></div><div class="dlg-foot"><button type="button" id="dCancel">Mégse</button><button type="button" id="dSave" class="send">Mentés</button></div></div></dialog>
 
 <script>
@@ -129,7 +149,7 @@ const TEXT_EXT = ['txt','md','csv','json','py','js','ts','html','css','xml','yml
 
 const MODES = {
   'Gyors': 'Segítőkész asszisztens vagy.',
-  'Gondolkodó': 'Válaszadás előtt lépésről lépésre vezesd le a logikát.',
+  'Gondolkodó': 'Segítőkész asszisztens vagy. A választ így építsd fel: az első 2-3 mondatban tömören, közvetlenül add meg a lényeget (a kérdésre adott választ), utána következzen a részletesebb, jól tagolt kifejtés (rövid alcímek, felsorolások, példák, ahol segítenek). Ne írd le, hogyan jutottál a válaszhoz, ne meséld a gondolatmenetedet. Ha valamiben bizonytalan vagy, a végén jelezd. A kérdés nyelvén válaszolj.',
   'Kódoló': 'Szakértő programozó vagy. Csak tiszta kódot írj!'
 };
 
@@ -145,6 +165,8 @@ const PROVIDERS = {
                suggest: ['claude-fable-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
                call: callAnthropic, list: listAnthropic }
 };
+const MODE_HINT = { 'Gondolkodó': 'Gondolkodó (lényeg, majd részletek)' };
+const SEARCH_HINT = ' Ha a kérdéshez friss vagy ellenőrizendő információ kell, használd a webes keresést.';
 const TIERS = { strong: { icon: '💪', label: 'Erős' }, cheap: { icon: '💰', label: 'Olcsó' } };
 
 const $ = id => document.getElementById(id);
@@ -153,12 +175,13 @@ const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 /* ============ Beállítások tárolása ============ */
 function slotDefault(id, provider) {
   const P = PROVIDERS[provider];
-  return { id, provider, models: { strong: P.strong, cheap: P.cheap }, mode: 'Gyors', active: true };
+  return { id, provider, models: { strong: P.strong, cheap: P.cheap }, mode: 'Gyors', active: true, send: true };
 }
 function defaults() {
   return {
     theme: null,
     tier: 'cheap',
+    search: false,
     keys: { gemini: '', openai: '', anthropic: '' },
     maxTokens: 4096,
     models: {},
@@ -173,6 +196,7 @@ function loadSettings() {
     if (raw && typeof raw === 'object') {
       if (raw.theme) d.theme = raw.theme;
       if (raw.tier === 'strong' || raw.tier === 'cheap') d.tier = raw.tier;
+      d.search = raw.search === true;
       if (raw.keys) Object.keys(d.keys).forEach(k => { if (typeof raw.keys[k] === 'string') d.keys[k] = raw.keys[k]; });
       if (raw.maxTokens) d.maxTokens = +raw.maxTokens || 4096;
       if (raw.models && typeof raw.models === 'object') d.models = raw.models;
@@ -181,7 +205,7 @@ function loadSettings() {
           const P = PROVIDERS[s.provider], m = s.models || {};   // a régi (1.0-s) mentésben nincs "models": ott az ajánlott pár kerül be
           return { id: +s.id, provider: s.provider,
                    models: { strong: String(m.strong || P.strong), cheap: String(m.cheap || P.cheap) },
-                   mode: MODES[s.mode] ? s.mode : 'Gyors', active: !!s.active };
+                   mode: MODES[s.mode] ? s.mode : 'Gyors', active: !!s.active, send: s.send !== false };
         });
         if (!d.slots.length) d.slots = defaults().slots;
         d.nextId = Math.max(d.nextId, raw.nextId || 0, ...d.slots.map(s => s.id + 1));
@@ -290,7 +314,8 @@ function viewHtml(view) {
     switch (v.role) {
       case 'user': return '<div class="msg user">👤 ' + esc(v.text).replace(/\n/g, '<br>') + (v.files && v.files.length ? '<div class="fl">📎 ' + esc(v.files.join(', ')) + '</div>' : '') + '</div>';
       case 'wait': return '<div class="wait"><span class="dots"></span> gondolkodik…</div>';
-      case 'ai':   return '<div class="msg ai md">' + md(v.text) + '</div><div class="meta">' + esc(v.meta || '') + '</div>';
+      case 'ai':   return '<div class="msg ai md">' + md(v.text) + '</div><div class="meta">' + esc(v.meta || '') + '</div>' +
+        (v.sources && v.sources.length ? '<div class="src">🌐 Források:<ol>' + v.sources.map(x => '<li><a href="' + esc(x.url) + '" target="_blank" rel="noopener noreferrer">' + esc(x.title) + '</a></li>').join('') + '</ol></div>' : '');
       case 'err':  return '<div class="err">❌ ' + esc(v.text) + '</div>';
       default: return '';
     }
@@ -313,10 +338,10 @@ function renderDeck() {
   }
   act.forEach(s => {
     const p = document.createElement('section');
-    p.className = 'panel'; p.dataset.id = s.id;
+    p.className = 'panel' + (s.send === false ? ' off' : ''); p.dataset.id = s.id;
     p.innerHTML = '<div class="phead"><span class="pname">' + esc(PROVIDERS[s.provider].label) + '</span><span class="pmodel">' + esc(modelOf(s)) +
       '</span><span class="pmode">' + esc(s.mode) + '</span><button type="button" data-act="copy" title="Utolsó válasz másolása">📋</button>' +
-      '<button type="button" data-act="reset" title="Ennek az ablaknak az újraindítása">↺</button></div><div class="pbody"></div>';
+      '<button type="button" data-act="full" title="Teljes oldalas nézet (görgetős képernyőképhez)">⛶</button><button type="button" data-act="reset" title="Ennek az ablaknak az újraindítása">↺</button></div><div class="pbody"></div>';
     deck.appendChild(p);
     paintBody(s.id);
   });
@@ -329,7 +354,7 @@ function renderDeck() {
 }
 function renderChips() {
   $('chips').innerHTML = S.slots.filter(s => s.active).map(s =>
-    '<button type="button" class="chip" data-id="' + s.id + '">' + esc(PROVIDERS[s.provider].label + ' · ' + modelOf(s)) + '</button>').join('');
+    '<div class="chip' + (s.send === false ? ' off' : '') + '" data-id="' + s.id + '"><input type="checkbox" class="ck" title="Kapjon-e kérdést ez az AI?"' + (s.send === false ? '' : ' checked') + '><span class="cl">' + esc(PROVIDERS[s.provider].label + ' · ' + modelOf(s)) + '</span></div>').join('');
   if (curId != null) setActiveChip(curId);
 }
 function updateTierBtn() {
@@ -352,7 +377,15 @@ function setActiveChip(id) {
     if (on) { try { c.scrollIntoView({ inline: 'center', block: 'nearest' }); } catch (e) {} }
   });
 }
+$('chips').addEventListener('change', e => {
+  const ck = e.target.closest('.ck'); if (!ck) return;
+  const c = ck.closest('.chip'), slot = S.slots.find(x => String(x.id) === c.dataset.id); if (!slot) return;
+  slot.send = ck.checked; saveSettings();
+  c.classList.toggle('off', !ck.checked);
+  const p = deck.querySelector('.panel[data-id="' + c.dataset.id + '"]'); if (p) p.classList.toggle('off', !ck.checked);
+});
 $('chips').addEventListener('click', e => {
+  if (e.target.closest('.ck')) return;
   const c = e.target.closest('.chip'); if (!c) return;
   const p = deck.querySelector('.panel[data-id="' + c.dataset.id + '"]');
   if (p) p.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
@@ -365,10 +398,23 @@ deck.addEventListener('click', e => {
   if (b.dataset.act === 'copy') {
     const last = [...getConvo(id).view].reverse().find(v => v.role === 'ai');
     if (last) copyText(last.text); else toast('Még nincs válasz.');
+  } else if (b.dataset.act === 'full') {
+    setFull(id);
   } else if (b.dataset.act === 'reset') {
     convo[id] = { history: [], view: [] }; paintBody(id); toast('Ablak újraindítva');
   }
 });
+
+/* Teljes oldalas nézet: normál görgetésű oldal, hogy a telefon görgetős képernyőképe működjön */
+function setFull(id) {
+  const on = id != null;
+  document.documentElement.classList.toggle('full', on); document.body.classList.toggle('full', on);
+  deck.querySelectorAll('.panel[data-id]').forEach(p => p.classList.toggle('fp', on && p.dataset.id === String(id)));
+  if (on) { window.scrollTo(0, 0); return; }
+  const p = deck.querySelector('.panel[data-id="' + curId + '"]');
+  if (p) { try { p.scrollIntoView({ inline: 'center', block: 'nearest' }); } catch (e) {} }
+}
+$('fBack').addEventListener('click', () => setFull(null));
 
 /* ============ Csatolmányok ============ */
 function readB64(file) {
@@ -433,11 +479,23 @@ async function httpError(res) {
 }
 const tokStr = (a, b) => (a != null ? a : '?') + ' → ' + (b != null ? b : '?') + ' token';
 const byNewest = (a, b) => b.localeCompare(a, 'en', { numeric: true });
+function cleanSources(list) {
+  const seen = new Set(), out = [];
+  (list || []).forEach(x => {
+    const url = x && String(x.url || ''); if (!/^https?:\/\//i.test(url) || seen.has(url)) return;
+    seen.add(url);
+    let title = String((x.title || '')).trim();
+    if (!title) { try { title = new URL(url).hostname; } catch (e) { title = url; } }
+    out.push({ title: title.slice(0, 140), url });
+  });
+  return out.slice(0, 12);
+}
+const searchNote = n => n ? '🌐 ' + n + ' keresés' : '';
 const RESP_ONLY = /(^|-)pro($|-)|codex/;   // a -pro és -codex modellek csak a Responses API-n érhetők el
 
 async function callOpenAI(slot, hist, t, sys, signal) {
   const key = S.keys.openai; if (!key) throw new Error('Hiányzik az OpenAI API-kulcs (⚙ Beállítások).');
-  if (RESP_ONLY.test(slot.model)) return openaiResponses(slot, hist, t, sys, signal, key);
+  if (t.search || RESP_ONLY.test(slot.model)) return openaiResponses(slot, hist, t, sys, signal, key);
   try { return await openaiChat(slot, hist, t, sys, signal, key); }
   catch (e) {
     if (e.status === 404 && /v1\/responses/.test(e.message)) return openaiResponses(slot, hist, t, sys, signal, key);
@@ -464,14 +522,20 @@ async function openaiResponses(slot, hist, t, sys, signal, key) {
     .concat(imgs.map(f => ({ type: 'input_image', image_url: 'data:' + f.mime + ';base64,' + f.b64 })))
     .concat(pdfs.map(f => ({ type: 'input_file', filename: f.name, file_data: 'data:application/pdf;base64,' + f.b64 })));
   const body = { model: slot.model, instructions: sys, input: hist.map(h => ({ role: h.role, content: h.text })).concat([{ role: 'user', content: parts }]) };
+  if (t.search) body.tools = [{ type: 'web_search' }];
   const res = await fetch('https://api.openai.com/v1/responses', { method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: JSON.stringify(body) });
   if (!res.ok) throw await httpError(res);
   const d = await res.json(), u = d.usage || {};
   const text = (d.output || []).filter(o => o.type === 'message').reduce((a, o) => a.concat(o.content || []), [])
     .map(c => c.type === 'output_text' ? c.text : c.type === 'refusal' ? c.refusal : '').join('');
-  let note = '';
-  if (d.status === 'incomplete') note = 'félbeszakadt: ' + ((d.incomplete_details && d.incomplete_details.reason) || 'ismeretlen ok');
-  return { text, usage: tokStr(u.input_tokens, u.output_tokens), note };
+  const notes = [];
+  if (d.status === 'incomplete') notes.push('félbeszakadt: ' + ((d.incomplete_details && d.incomplete_details.reason) || 'ismeretlen ok'));
+  const out = d.output || [];
+  const nSearch = out.filter(o => o.type === 'web_search_call').length;
+  if (t.search) notes.push(nSearch ? searchNote(nSearch) : 'nem keresett a weben');
+  const sources = cleanSources(out.filter(o => o.type === 'message').reduce((a, o) => a.concat(o.content || []), [])
+    .reduce((a, c) => a.concat(c.annotations || []), []).filter(an => an.type === 'url_citation'));
+  return { text, usage: tokStr(u.input_tokens, u.output_tokens), note: notes.join(' · '), sources };
 }
 
 async function callAnthropic(slot, hist, t, sys, signal) {
@@ -480,11 +544,30 @@ async function callAnthropic(slot, hist, t, sys, signal) {
   const content = imgs.map(f => ({ type: 'image', source: { type: 'base64', media_type: f.mime, data: f.b64 } }))
     .concat(pdfs.map(f => ({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.b64 } })))
     .concat([{ type: 'text', text: t.fullText }]);
-  const body = { model: slot.model, max_tokens: S.maxTokens || 4096, system: sys, messages: hist.map(h => ({ role: h.role, content: h.text })).concat([{ role: 'user', content }]) };
-  const res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify(body) });
-  if (!res.ok) throw await httpError(res);
-  const d = await res.json(), u = d.usage || {};
-  return { text: (d.content || []).filter(p => p.type === 'text').map(p => p.text).join(''), usage: tokStr(u.input_tokens, u.output_tokens), note: d.stop_reason === 'max_tokens' ? 'a válasz elérte a max. hosszt (⚙-ben emelhető)' : '' };
+  let msgs = hist.map(h => ({ role: h.role, content: h.text })).concat([{ role: 'user', content }]);
+  const body = { model: slot.model, max_tokens: S.maxTokens || 4096, system: sys, messages: msgs };
+  if (t.search) body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }];
+  let text = '', tin = 0, tout = 0, nSearch = 0, last = null, found = [];
+  for (let round = 0; round < 4; round++) {     // pause_turn: a hosszú keresési kört folytatni kell
+    body.messages = msgs;
+    const res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify(body) });
+    if (!res.ok) throw await httpError(res);
+    const d = await res.json(), u = d.usage || {}, blocks = d.content || [];
+    last = d; tin += u.input_tokens || 0; tout += u.output_tokens || 0;
+    nSearch += (u.server_tool_use && u.server_tool_use.web_search_requests) || 0;
+    text += blocks.filter(p => p.type === 'text').map(p => p.text).join('');
+    blocks.forEach(p => {
+      if (p.type === 'web_search_tool_result' && Array.isArray(p.content)) found = found.concat(p.content.filter(r => r.type === 'web_search_result'));
+      if (p.type === 'text' && Array.isArray(p.citations)) found = found.concat(p.citations.filter(c => c.url));
+    });
+    if (d.stop_reason === 'pause_turn') { msgs = msgs.concat([{ role: 'assistant', content: blocks }]); continue; }
+    break;
+  }
+  const notes = [];
+  if (last.stop_reason === 'max_tokens') notes.push('a válasz elérte a max. hosszt (⚙-ben emelhető)');
+  if (last.stop_reason === 'pause_turn') notes.push('a keresés félbeszakadt, a válasz hiányos lehet');
+  if (t.search) notes.push(nSearch ? searchNote(nSearch) : 'nem keresett a weben');
+  return { text, usage: tokStr(tin, tout), note: notes.join(' · '), sources: cleanSources(found) };
 }
 
 async function callGemini(slot, hist, t, sys, signal) {
@@ -495,14 +578,18 @@ async function callGemini(slot, hist, t, sys, signal) {
     system_instruction: { parts: [{ text: sys }] },
     contents: hist.map(h => ({ role: h.role === 'assistant' ? 'model' : 'user', parts: [{ text: h.text }] })).concat([{ role: 'user', parts }])
   };
+  if (t.search) body.tools = [{ google_search: {} }];
   const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', { method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) });
   if (!res.ok) throw await httpError(res);
   const d = await res.json(), c = d.candidates && d.candidates[0], u = d.usageMetadata || {};
   if (!c) throw new Error('Nincs válasz' + (d.promptFeedback && d.promptFeedback.blockReason ? ' (blokkolva: ' + d.promptFeedback.blockReason + ')' : '') + '.');
   const text = ((c.content && c.content.parts) || []).filter(p => p.text && !p.thought).map(p => p.text).join('');
-  let note = '';
-  if (c.finishReason && c.finishReason !== 'STOP') note = 'befejezés oka: ' + c.finishReason;
-  return { text, usage: tokStr(u.promptTokenCount, u.candidatesTokenCount), note };
+  const notes = [];
+  if (c.finishReason && c.finishReason !== 'STOP') notes.push('befejezés oka: ' + c.finishReason);
+  const gm = c.groundingMetadata || {};
+  if (t.search) notes.push((gm.webSearchQueries || []).length ? searchNote(gm.webSearchQueries.length) : 'nem keresett a weben');
+  const sources = cleanSources((gm.groundingChunks || []).map(g => g.web && { url: g.web.uri, title: g.web.title }).filter(Boolean));
+  return { text, usage: tokStr(u.promptTokenCount, u.candidatesTokenCount), note: notes.join(' · '), sources };
 }
 
 // A lekérdezett listákból kiszűrjük, ami nem szöveges csevegésre való (hang, kép, keresés, robotika stb.)
@@ -541,17 +628,18 @@ function friendlyError(e) {
 /* ============ Küldés ============ */
 async function runSlot(slot, turn) {
   const c = getConvo(slot.id);
-  const eff = Object.assign({}, slot, { model: modelOf(slot) });   // a küldéskor érvényes modell
+  const eff = Object.assign({}, slot, { model: modelOf(slot) });
+  const sys = (MODES[slot.mode] || MODES['Gyors']) + (turn.search ? SEARCH_HINT : '');   // a küldéskor érvényes modell
   c.view.push({ role: 'user', text: turn.prompt, files: turn.names });
   c.view.push({ role: 'wait' });
   paintBody(slot.id);
   const ctrl = new AbortController(); controllers.push(ctrl);
   const t0 = performance.now();
   try {
-    const r = await PROVIDERS[slot.provider].call(eff, c.history, turn, MODES[slot.mode] || MODES['Gyors'], ctrl.signal);
+    const r = await PROVIDERS[slot.provider].call(eff, c.history, turn, sys, ctrl.signal);
     c.view = c.view.filter(v => v.role !== 'wait');
     const sec = ((performance.now() - t0) / 1000).toFixed(1);
-    c.view.push({ role: 'ai', model: eff.model, text: r.text || '(üres válasz)', meta: eff.model + ' · ' + r.usage + ' · ' + sec + ' mp' + (r.note ? ' · ' + r.note : '') });
+    c.view.push({ role: 'ai', model: eff.model, sources: r.sources || [], text: r.text || '(üres válasz)', meta: eff.model + ' · ' + r.usage + ' · ' + sec + ' mp' + (r.note ? ' · ' + r.note : '') });
     c.history.push({ role: 'user', text: turn.prompt + turn.note }, { role: 'assistant', text: r.text });
   } catch (e) {
     c.view = c.view.filter(v => v.role !== 'wait');
@@ -568,18 +656,23 @@ async function send() {
   if (busy) { controllers.forEach(c => c.abort()); return; }
   const text = $('inp').value.trim();
   if (!text && !attachments.length) return;
-  const act = S.slots.filter(s => s.active);
-  if (!act.length) { toast('Nincs aktív ablak (⚙ Beállítások).'); return; }
+  const act = S.slots.filter(s => s.active && s.send !== false);
+  if (!act.length) { toast(S.slots.some(s => s.active) ? 'Egyik AI-nál sincs pipa – jelölj be legalább egyet.' : 'Nincs aktív ablak (⚙ Beállítások).'); return; }
   const files = attachments.slice();
   const prompt = text || 'Mit tartalmaz a csatolt fájl? Röviden foglald össze.';
   const fullText = prompt + files.filter(f => f.kind === 'text').map(f => '\n\n--- ' + f.name + ' ---\n' + f.text).join('');
   const names = files.map(f => f.name);
-  const turn = { prompt, fullText, files, names, note: names.length ? '\n[Csatolva: ' + names.join(', ') + ']' : '' };
+  const turn = { prompt, fullText, files, names, search: !!S.search, note: names.length ? '\n[Csatolva: ' + names.join(', ') + ']' : '' };
   $('inp').value = ''; autoGrow(); attachments = []; renderAtts();
   busy = true; controllers = []; setSendBtn();
   await Promise.allSettled(act.map(s => runSlot(s, turn)));
   busy = false; setSendBtn();
 }
+function updateWebBtn() { $('bWeb').classList.toggle('on', !!S.search); $('bWeb').title = S.search ? 'Webes keresés BE – kikapcsolás' : 'Webes keresés KI – bekapcsolás'; }
+$('bWeb').addEventListener('click', () => {
+  S.search = !S.search; saveSettings(); updateWebBtn();
+  toast(S.search ? '🌐 Webes keresés BE: a következő kérdésnél mindhárom AI kereshet (keresésenként külön díj lehet).' : '🌐 Webes keresés KI');
+});
 function autoGrow() { const t = $('inp'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 140) + 'px'; }
 $('inp').addEventListener('input', autoGrow);
 $('inp').addEventListener('keydown', e => {
@@ -606,7 +699,7 @@ $('bExp').addEventListener('click', () => {
     const v = getConvo(s.id).view.filter(x => x.role === 'user' || x.role === 'ai' || x.role === 'err');
     if (!v.length) return;
     out += 'DÁTUM: ' + stamp + '\nMI: ' + PROVIDERS[s.provider].label + ' (' + s.mode + ')\n\n';
-    v.forEach(x => { out += (x.role === 'user' ? 'KÉRDÉS:\n' : x.role === 'ai' ? 'VÁLASZ' + (x.model ? ' (' + x.model + ')' : '') + ':\n' : 'HIBA:\n') + x.text + '\n\n'; });
+    v.forEach(x => { out += (x.role === 'user' ? 'KÉRDÉS:\n' : x.role === 'ai' ? 'VÁLASZ' + (x.model ? ' (' + x.model + ')' : '') + ':\n' : 'HIBA:\n') + x.text + '\n' + (x.sources && x.sources.length ? '\nFORRÁSOK:\n' + x.sources.map(z => '- ' + z.title + ': ' + z.url).join('\n') + '\n' : '') + '\n'; });
     out += '='.repeat(70) + '\n\n';
   });
   if (!out) { toast('Még nincs mit menteni.'); return; }
@@ -636,7 +729,7 @@ function renderRows() {
     '<button type="button" class="danger" data-del="' + i + '">Törlés</button></div>' +
     '<select data-f="provider">' + Object.keys(PROVIDERS).map(k => '<option value="' + k + '"' + (k === s.provider ? ' selected' : '') + '>' + esc(PROVIDERS[k].label) + '</option>').join('') + '</select>' +
     modelSelect('strong', s) + modelSelect('cheap', s) +
-    '<select data-f="mode">' + Object.keys(MODES).map(k => '<option' + (k === s.mode ? ' selected' : '') + '>' + k + '</option>').join('') + '</select></div>').join('');
+    '<select data-f="mode">' + Object.keys(MODES).map(k => '<option value="' + k + '"' + (k === s.mode ? ' selected' : '') + '>' + esc(MODE_HINT[k] || k) + '</option>').join('') + '</select></div>').join('');
 }
 function openSettings() {
   draft = JSON.parse(JSON.stringify(S));
@@ -712,6 +805,7 @@ $('bTier').addEventListener('click', () => {
 applyTheme();
 renderDeck();
 updateTierBtn();
+updateWebBtn();
 if (!S.keys.gemini && !S.keys.openai && !S.keys.anthropic) setTimeout(() => toast('Első lépés: ⚙ → API-kulcsok megadása'), 600);
 })();
 </script>
