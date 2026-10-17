@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>AI-Aréna Web v1.7.2</title>
+<title>AI-Aréna Web v1.7.3</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -55,6 +55,8 @@ body.full .fback{display:block;margin:4px 8px 24px;width:calc(100% - 16px);paddi
 .pmode{font-size:11px;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--mut)}
 .phead button{padding:2px 8px;font-size:14px}
 .pbody{flex:1;min-height:0;overflow-y:auto;padding:12px;position:relative;-webkit-overflow-scrolling:touch}
+.prog{margin:0 0 12px;font-size:14px;line-height:1.9}
+.prog .mut{color:var(--mut)}
 .hint{color:var(--mut);text-align:center;margin-top:20px;font-size:14px}
 .msg.user{color:var(--echo);font-style:italic;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:10px;overflow-wrap:anywhere}
 .msg.user .fl{font-size:12px;color:var(--mut);font-style:normal;margin-top:4px}
@@ -117,7 +119,7 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ AI-Aréna <small>Web v1.7.2</small></div>
+  <div class="brand">⚔️ AI-Aréna <small>Web v1.7.3</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
@@ -407,6 +409,13 @@ function viewHtml(view) {
       case 'wait': return '<div class="wait"><span class="dots"></span> gondolkodik…</div>';
       case 'ai':   return '<div class="msg ai md">' + md(v.text) + '</div><div class="meta">' + esc(v.meta || '') + '</div>' +
         (v.sources && v.sources.length ? '<div class="src">🌐 Források:<ol>' + v.sources.map(x => '<li><a href="' + esc(x.url) + '" target="_blank" rel="noopener noreferrer">' + esc(x.title) + '</a></li>').join('') + '</ol></div>' : '');
+      case 'prog': {
+        const ln = i => (i.state === 'wait' ? '<span class="dots"></span>' : i.state === 'ok' ? '✅' : '❌') + ' <b>' + esc(i.label) + '</b> – ' +
+          (i.state === 'wait' ? 'gondolkodik…' : i.state === 'ok' ? 'kész (' + esc(i.sec) + ' mp)' : 'nem sikerült');
+        const sm = { idle: '<span class="mut">📝 Az összefoglaló megvárja a válaszokat…</span>', wait: '<span class="dots"></span> <b>Összefoglaló</b> – készül…',
+          done: '✅ <b>Összefoglaló</b> – kész', err: '❌ <b>Összefoglaló</b> – nem sikerült', skip: '⚠️ Összefoglaló kihagyva: legalább két sikeres válasz kell.' };
+        return '<div class="prog">' + v.items.map(i => '<div>' + ln(i) + '</div>').join('') + '<div>' + (sm[v.sum] || '') + '</div></div>';
+      }
       case 'err':  return '<div class="err">❌ ' + esc(v.text) + '</div>';
       default: return '';
     }
@@ -754,13 +763,17 @@ async function runSlot(slot, turn) {
     c.view = c.view.filter(v => v.role !== 'wait');
     c.view.push({ role: 'err', text: '[' + eff.model + '] ' + friendlyError(e) });
   }
+  if (turn.prog) {
+    const it = turn.prog.items.find(x => x.id === slot.id);
+    if (it) { it.state = res.ok ? 'ok' : 'err'; it.sec = ((performance.now() - t0) / 1000).toFixed(1); }
+    paintBody('sum');
+  }
   paintBody(slot.id);
   return res;
 }
 async function runSummary(turn, oks) {
-  const c = getConvo('sum'), P = S.sumAI, eff = { provider: P.provider, model: P.model };
-  c.view.push({ role: 'user', text: turn.prompt, files: turn.names });
-  c.view.push({ role: 'wait' });
+  const c = getConvo('sum'), P = S.sumAI, eff = { provider: P.provider, model: P.model }, pg = turn.prog;
+  if (pg) pg.sum = 'wait'; else c.view.push({ role: 'user', text: turn.prompt, files: turn.names });
   paintBody('sum');
   const fullText = 'Kérdés:\n' + turn.prompt + '\n\n' + oks.map(a => '=== ' + a.label + ' (' + a.model + ') válasza ===\n' + a.text.slice(0, 12000)).join('\n\n');
   const sturn = { prompt: turn.prompt, fullText, files: [], names: [], note: '', search: false };
@@ -768,11 +781,11 @@ async function runSummary(turn, oks) {
   const t0 = performance.now();
   try {
     const r = await PROVIDERS[P.provider].call(eff, [], sturn, SUM_SYS, ctrl.signal);
-    c.view = c.view.filter(v => v.role !== 'wait');
+    if (pg) pg.sum = 'done';
     const sec = ((performance.now() - t0) / 1000).toFixed(1);
     c.view.push({ role: 'ai', model: P.model, sources: [], text: r.text || '(üres válasz)', meta: P.model + ' · ' + r.usage + ' · ' + sec + ' mp' + (r.note ? ' · ' + r.note : '') });
   } catch (e) {
-    c.view = c.view.filter(v => v.role !== 'wait');
+    if (pg) pg.sum = 'err';
     c.view.push({ role: 'err', text: '[' + P.model + '] ' + friendlyError(e) });
   }
   paintBody('sum');
@@ -806,12 +819,20 @@ async function send() {
   const names = files.map(f => f.name);
   const turn = { prompt, fullText, files, names, search: !!S.search, note: names.length ? '\n[Csatolva: ' + names.join(', ') + ']' : '' };
   $('inp').value = ''; autoGrow(); attachments = []; renderAtts();
+  if (S.sum && act.length >= 2) {
+    turn.prog = { role: 'prog', items: act.map(s => ({ id: s.id, label: PROVIDERS[s.provider].label, state: 'wait', sec: '' })), sum: 'idle' };
+    getConvo('sum').view.push({ role: 'user', text: prompt, files: names }, turn.prog);
+    paintBody('sum');
+  }
   busy = true; controllers = []; setSendBtn();
   const results = await Promise.allSettled(act.map(s => runSlot(s, turn)));
   if (S.sum) {
     const oks = results.map(r => r.value).filter(v => v && v.ok && v.text);
     if (oks.length >= 2) await runSummary(turn, oks);
-    else if (act.length >= 2) toast('Összefoglaló kihagyva: legalább két sikeres válasz kell.');
+    else {
+      if (turn.prog) { turn.prog.sum = 'skip'; paintBody('sum'); }
+      if (act.length >= 2) toast('Összefoglaló kihagyva: legalább két sikeres válasz kell.');
+    }
   }
   busy = false; setSendBtn();
 }
