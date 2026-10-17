@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>MI-Aréna Web v1.5</title>
+<title>MI-Aréna Web v1.6</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -20,6 +20,7 @@ button.danger{color:var(--err)}
 .brand small{color:var(--mut);font-weight:400}
 .bar-btns{display:flex;gap:6px}
 .bar-btns button{min-width:38px;min-height:36px;font-size:16px}
+.bar-btns button svg{display:block;margin:auto}
 .navrow{display:flex;align-items:center;gap:6px;padding:8px 8px 4px;flex:0 0 auto}
 .chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
 .chips::-webkit-scrollbar{display:none}
@@ -118,12 +119,12 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ MI-Aréna <small>Web v1.5</small></div>
+  <div class="brand">⚔️ MI-Aréna <small>Web v1.6</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
     <button id="bTheme" title="Világos / sötét">🌓</button>
-    <button id="bSet" title="Beállítások">⚙</button>
+    <button id="bSet" title="Beállítások" aria-label="Beállítások"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></button>
   </div>
 </header>
 <div class="navrow"><button id="bTier" class="tier cheap" type="button" title="Váltás az erős és az olcsó modellek között">💰 Olcsó</button><nav id="chips" class="chips"></nav></div>
@@ -143,6 +144,7 @@ dialog::backdrop{background:#0008}
   <input id="file" type="file" hidden multiple accept="image/*,application/pdf,.pdf,.txt,.md,.csv,.json,.py,.js,.ts,.html,.css,.xml,.yml,.yaml,.ini,.log,.sql,.bat,.sh,.cfg,.toml">
 </footer>
 <button id="fBack" class="fback" type="button">↩ Vissza a lapozható nézethez</button>
+<dialog id="pinDlg" style="width:min(340px,92vw)"><div class="dlg-in"><div class="dlg-body"><h2>🔒 PIN</h2><p id="pinMsg" class="note"></p><input id="pinIn" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" style="width:100%;font-size:26px;letter-spacing:10px;text-align:center;background:var(--in);border:1px solid var(--line);border-radius:10px;padding:8px"><p id="pinErr" class="note" style="color:var(--err);min-height:1.3em;margin:8px 0 0"></p></div><div class="dlg-foot"><button type="button" id="pinCancel">Mégse</button><button type="button" id="pinOk" class="send">OK</button></div></div></dialog>
 <dialog id="dlg"><div class="dlg-in"><div id="dlgBody" class="dlg-body"></div><div class="dlg-foot"><button type="button" id="dCancel">Mégse</button><button type="button" id="dSave" class="send">Mentés</button></div></div></dialog>
 
 <script>
@@ -197,6 +199,8 @@ function defaults() {
     tier: 'cheap',
     search: false,
     sum: true,
+    lock: { hash: '', salt: '', limit: 10, until: 0, fails: 0 },
+    usage: { day: '', n: 0, unlocks: 0 },
     sumAI: { provider: 'anthropic', model: 'claude-sonnet-5-5' },
     mode: 'Gyors',
     about: '',
@@ -216,6 +220,11 @@ function loadSettings() {
       if (raw.tier === 'strong' || raw.tier === 'cheap') d.tier = raw.tier;
       d.search = raw.search === true;
       d.sum = raw.sum !== false;
+      if (raw.lock && typeof raw.lock === 'object') {
+        const L = raw.lock, lim = Math.floor(+L.limit);
+        d.lock = { hash: typeof L.hash === 'string' ? L.hash : '', salt: typeof L.salt === 'string' ? L.salt : '', limit: lim >= 0 && lim <= 999 ? lim : 10, until: +L.until || 0, fails: +L.fails || 0 };
+      }
+      if (raw.usage && typeof raw.usage === 'object') d.usage = { day: String(raw.usage.day || ''), n: Math.max(0, Math.floor(+raw.usage.n) || 0), unlocks: Math.max(0, Math.floor(+raw.usage.unlocks) || 0) };
       if (raw.sumAI && PROVIDERS[raw.sumAI.provider] && raw.sumAI.model) d.sumAI = { provider: raw.sumAI.provider, model: String(raw.sumAI.model) };
       if (MODES[raw.mode]) d.mode = raw.mode;
       else { const fs = Array.isArray(raw.slots) && raw.slots.find(x => x && x.active && MODES[x.mode]); if (fs) d.mode = fs.mode; }
@@ -244,8 +253,65 @@ let S = loadSettings();
 const convo = {};                // slotId -> { history:[], view:[] }
 let attachments = [];            // csatolt fájlok a következő küldéshez
 let busy = false;
+let asking = false;
 let controllers = [];
 const getConvo = id => convo[id] || (convo[id] = { history: [], view: [] });
+
+/* ============ Gyerekzár: napi limit az erős modellekre + PIN ============ */
+const dayKey = () => { const n = new Date(), p = x => String(x).padStart(2, '0'); return n.getFullYear() + '-' + p(n.getMonth() + 1) + '-' + p(n.getDate()); };
+const lockActive = () => !!(S.lock && S.lock.hash && S.lock.limit > 0);
+function rollDay() { const d = dayKey(); if (S.usage.day !== d) S.usage = { day: d, n: 0, unlocks: 0 }; }
+const usageCap = () => S.lock.limit * (1 + S.usage.unlocks);
+const usedUp = () => S.usage.n >= usageCap();
+function lockInfo() {
+  if (S.tier !== 'strong' || !lockActive()) return '';
+  rollDay();
+  return ' · ma még ' + Math.max(0, usageCap() - S.usage.n) + ' erős kérdés';
+}
+function randSalt() {
+  try { const a = new Uint8Array(8); crypto.getRandomValues(a); return Array.from(a).map(x => x.toString(16).padStart(2, '0')).join(''); }
+  catch (e) { return Math.random().toString(16).slice(2, 18); }
+}
+async function hashPin(pin, salt) {
+  const data = 'miarena|' + salt + '|' + pin;
+  try {
+    if (window.crypto && crypto.subtle) {
+      const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
+      return 's' + Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, '0')).join('');
+    }
+  } catch (e) {}
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < data.length; i++) { const c = data.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 'f' + (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+}
+const verifyPin = async pin => (await hashPin(pin, S.lock.salt)) === S.lock.hash;
+function askPin(msg) {
+  return new Promise(res => {
+    const d = $('pinDlg'), inp = $('pinIn'), err = $('pinErr');
+    $('pinMsg').textContent = msg; inp.value = ''; err.textContent = '';
+    let done = false;
+    const fin = ok => { if (done) return; done = true; try { d.close(); } catch (e) {} res(ok); };
+    const tryOk = async () => {
+      const wait = Math.ceil((S.lock.until - Date.now()) / 1000);
+      if (wait > 0) { err.textContent = 'Túl sok hibás próba. Várj ' + wait + ' mp-et.'; return; }
+      if (!/^\d{4}$/.test(inp.value)) { err.textContent = 'A PIN 4 számjegy.'; return; }
+      if (await verifyPin(inp.value)) { S.lock.fails = 0; S.lock.until = 0; saveSettings(); fin(true); return; }
+      inp.value = '';
+      S.lock.fails = (S.lock.fails || 0) + 1;
+      if (S.lock.fails >= 3) { S.lock.fails = 0; S.lock.until = Date.now() + 30000; err.textContent = 'Hibás PIN. 3 hibás próba után 30 mp szünet.'; }
+      else err.textContent = 'Hibás PIN.';
+      saveSettings();
+    };
+    $('pinOk').onclick = tryOk;
+    $('pinCancel').onclick = () => fin(false);
+    d.oncancel = ev => { ev.preventDefault(); fin(false); };
+    inp.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); tryOk(); } };
+    d.showModal();
+    try { inp.focus(); } catch (e) {}
+  });
+}
 
 /* ============ Kis segédek ============ */
 let toastTimer;
@@ -713,6 +779,18 @@ async function send() {
   if (!text && !attachments.length) return;
   const act = S.slots.filter(s => s.active && s.send !== false);
   if (!act.length) { toast(S.slots.some(s => s.active) ? 'Egyik AI-nál sincs pipa – jelölj be legalább egyet.' : 'Nincs aktív ablak (⚙ Beállítások).'); return; }
+  if (asking) return;
+  if (lockActive() && S.tier === 'strong') {
+    rollDay();
+    if (usedUp()) {
+      asking = true;
+      const ok = await askPin('Elfogyott a mai ' + S.lock.limit + ' erős kérdés. A PIN-nel még ' + S.lock.limit + ' kérdést oldasz fel.');
+      asking = false;
+      if (!ok) return;
+      S.usage.unlocks++;
+    }
+    S.usage.n++; saveSettings();
+  }
   const files = attachments.slice();
   const prompt = text || 'Mit tartalmaz a csatolt fájl? Röviden foglald össze.';
   const fullText = prompt + files.filter(f => f.kind === 'text').map(f => '\n\n--- ' + f.name + ' ---\n' + f.text).join('');
@@ -797,6 +875,11 @@ function modelSelect(field, s) {
   const opts = modelOptions(s.provider, cur).map(m => '<option value="' + esc(m) + '"' + (m === cur ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
   return '<span class="mlbl">' + TIERS[field].icon + ' ' + TIERS[field].label + ' modell</span><select data-f="' + field + '">' + opts + '<option value="__custom">✎ Egyéni modellnév…</option></select>';
 }
+function renderLockInfo() {
+  const d = draft.usage.day === dayKey() ? draft.usage : { n: 0, unlocks: 0 };
+  $('pinState').textContent = draft.lock.hash ? '✔ PIN be van állítva.' : 'Nincs PIN, ezért a zár nem aktív.';
+  $('useInfo').textContent = 'Ma felhasznált erős kérdések: ' + d.n + ' / ' + (draft.lock.limit * (1 + d.unlocks));
+}
 function renderSum() {
   const a = draft.sumAI;
   const opts = modelOptions(a.provider, a.model).map(m => '<option value="' + esc(m) + '"' + (m === a.model ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
@@ -818,11 +901,16 @@ function openSettings() {
     Object.keys(PROVIDERS).map(k => '<label class="fld"><span>' + esc(PROVIDERS[k].keyLabel) + '</span><div class="inl"><input type="password" id="key-' + k + '" autocomplete="off" spellcheck="false" value="' + esc(draft.keys[k] || '') + '"><button type="button" class="ic" data-show="' + k + '">👁</button></div></label>').join('') +
     '<label class="fld"><span>Rólam / egyéni utasítás (minden AI megkapja minden kérdésnél)</span><textarea id="about" rows="4" maxlength="2000" style="width:100%;background:var(--in);border:1px solid var(--line);border-radius:8px;padding:7px 9px;resize:vertical" placeholder="Pl.: Norbi vagyok, magyarul válaszolj, tömören és érthetően. Hobbi fejlesztő vagyok, Python és webes eszközök.">' + esc(draft.about || '') + '</textarea></label>' +
     '<label class="fld"><span>Claude max. válaszhossz (token)</span><input type="number" id="maxTok" min="256" max="64000" step="256" value="' + (+draft.maxTokens || 4096) + '"></label>' +
+    '<h3>🔒 Gyerekzár</h3><p class="note">Az erős (💪) modellekkel naponta ennyi kérdést lehet feltenni, utána PIN kell, amivel újabb ennyi kérdés oldható fel. Ha van PIN, a ⚙ Beállítások is csak PIN-nel nyílik meg. Elfelejtett PIN-hez nincs visszaállítás: az oldal adatainak törlése megoldja, de a kulcsokat is törli. A védelem csak ebben a böngészőben él, a szolgáltatónál érdemes költséghatárt is beállítani.</p>' +
+    '<label class="fld"><span>Napi erős kérdések száma (0 = nincs limit)</span><input type="number" id="lim" min="0" max="999" step="1" value="' + (draft.lock.limit | 0) + '"></label>' +
+    '<label class="fld"><span>Új PIN (4 számjegy; üresen hagyva marad a régi)</span><input type="password" id="newPin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="····"></label>' +
+    '<p class="note" id="pinState"></p><p class="note" id="useInfo"></p>' +
+    '<div class="inl"><button type="button" id="pinDel" class="danger">PIN törlése</button><button type="button" id="useReset">Mai számláló nullázása</button></div>' +
     '<h3>Összefoglaló AI</h3><p class="note">Ez foglalja össze a válaszok közös részeit és különbségeit (legalább két válasz kell hozzá). A főképernyőn a 📝 gombbal kapcsolható be és ki. Az első ablakban jelenik meg.</p><div id="sumBox" class="sbox"></div>' +
     '<h3>Ablakok</h3><p class="note">Mindegyik AI-nak két modellje van: 💪 erős és 💰 olcsó. A főképernyőn a bal felső gombbal váltasz köztük. A módot (⚡ Gyors / 🧠 Gondolkodó / 💻 Kódoló) a beírómező alatti gombbal állítod.</p><div id="rows"></div>' +
     '<div class="inl"><button type="button" id="addSlot">+ Ablak</button><button type="button" id="fetchModels">🔄 Modellek lekérdezése</button></div>' +
     '<div class="inl"><button type="button" id="clearKeys" class="danger">Kulcsok törlése</button></div>';
-  renderRows(); renderSum();
+  renderRows(); renderSum(); renderLockInfo();
   dlg.showModal();
 }
 function readKeysFromInputs() {
@@ -849,6 +937,8 @@ dlg.addEventListener('change', e => {
 });
 dlg.addEventListener('click', async e => {
   const t = e.target;
+  if (t.id === 'pinDel') { draft.lock.hash = ''; draft.lock.salt = ''; draft.lock.fails = 0; draft.lock.until = 0; renderLockInfo(); return; }
+  if (t.id === 'useReset') { draft.usage = { day: dayKey(), n: 0, unlocks: 0 }; renderLockInfo(); return; }
   if (t.dataset.show) { const el = $('key-' + t.dataset.show); el.type = el.type === 'password' ? 'text' : 'password'; return; }
   if (t.dataset.del !== undefined) {
     if (draft.slots.length <= 1) { toast('Legalább egy ablak maradjon.'); return; }
@@ -877,19 +967,32 @@ dlg.addEventListener('click', async e => {
   }
 });
 $('dCancel').addEventListener('click', () => dlg.close());
-$('dSave').addEventListener('click', () => {
+$('dSave').addEventListener('click', async () => {
   readKeysFromInputs();
+  const lim = parseInt($('lim').value, 10); draft.lock.limit = lim >= 0 ? Math.min(lim, 999) : 10;
+  const np = $('newPin').value.trim();
+  if (np) {
+    if (!/^\d{4}$/.test(np)) { toast('A PIN pontosan 4 számjegy legyen.'); return; }
+    draft.lock.salt = randSalt(); draft.lock.hash = await hashPin(np, draft.lock.salt); draft.lock.fails = 0; draft.lock.until = 0;
+  }
   draft.slots.forEach(s => { const P = PROVIDERS[s.provider]; s.models.strong = s.models.strong || P.strong; s.models.cheap = s.models.cheap || P.cheap; });
   S = draft; saveSettings(); dlg.close(); renderDeck(); updateTierBtn(); updateModeBtn(); toast('Beállítások elmentve');
 });
-$('bSet').addEventListener('click', openSettings);
+$('bSet').addEventListener('click', async () => {
+  if (lockActive() || (S.lock && S.lock.hash)) {
+    if (asking) return;
+    asking = true; const ok = await askPin('A beállítások PIN-kóddal nyílnak meg.'); asking = false;
+    if (!ok) return;
+  }
+  openSettings();
+});
 
 /* ============ Indulás ============ */
 $('bTier').addEventListener('click', () => {
   if (busy) { toast('Várd meg a válaszokat, vagy nyomd meg a Leállít gombot.'); return; }
   S.tier = S.tier === 'strong' ? 'cheap' : 'strong';
   saveSettings(); updateLabels();
-  toast(TIERS[S.tier].icon + ' ' + TIERS[S.tier].label + ': ' + S.slots.filter(x => x.active).map(x => modelOf(x)).join(' · '));
+  toast(TIERS[S.tier].icon + ' ' + TIERS[S.tier].label + ': ' + S.slots.filter(x => x.active).map(x => modelOf(x)).join(' · ') + lockInfo());
 });
 applyTheme();
 renderDeck();
