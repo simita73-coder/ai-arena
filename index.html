@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>MI-Aréna Web v1.6</title>
+<title>MI-Aréna Web v1.6.1</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -34,6 +34,7 @@ button.danger{color:var(--err)}
 .tier{flex:0 0 auto;border-radius:999px;font-weight:700;padding:5px 12px;font-size:13px;white-space:nowrap;color:#fff}
 .tier.strong{background:#6a1b9a;border-color:#6a1b9a}
 .tier.cheap{background:#00695c;border-color:#00695c}
+.brow .tier{border-radius:8px;min-width:40px;min-height:40px;padding:0;font-size:18px}
 .mlbl{font-size:12px;color:var(--mut);margin-bottom:-2px}
 .deck{flex:1;min-height:0;display:flex;gap:8px;padding:4px 8px 8px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
 .panel{flex:0 0 100%;scroll-snap-align:center;display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
@@ -119,7 +120,7 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ MI-Aréna <small>Web v1.6</small></div>
+  <div class="brand">⚔️ MI-Aréna <small>Web v1.6.1</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
@@ -127,7 +128,7 @@ dialog::backdrop{background:#0008}
     <button id="bSet" title="Beállítások" aria-label="Beállítások"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></button>
   </div>
 </header>
-<div class="navrow"><button id="bTier" class="tier cheap" type="button" title="Váltás az erős és az olcsó modellek között">💰 Olcsó</button><nav id="chips" class="chips"></nav></div>
+<div class="navrow"><nav id="chips" class="chips"></nav></div>
 <main id="deck" class="deck"></main>
 <footer class="composer">
   <div id="atts" class="atts"></div>
@@ -138,6 +139,7 @@ dialog::backdrop{background:#0008}
       <button id="bWeb" class="ic" type="button" title="Webes keresés (a küldéskor mindhárom AI-nál)">🌐</button>
       <button id="bMode" class="modebtn" type="button"></button>
       <button id="bSum" class="ic" type="button">📝</button>
+      <button id="bTier" class="tier cheap" type="button"></button>
       <button id="bSend" class="send">Küldés</button>
     </div>
   </div>
@@ -457,8 +459,10 @@ function renderChips() {
 }
 function updateTierBtn() {
   const b = $('bTier'), t = TIERS[S.tier];
-  b.textContent = t.icon + ' ' + t.label;
+  b.textContent = t.icon;
   b.className = 'tier ' + S.tier;
+  b.title = t.label + ' modellek (koppints a váltáshoz: 💰 olcsó ⇄ 💪 erős)';
+  b.setAttribute('aria-label', t.label + ' modellek');
 }
 function updateLabels() {   // váltáskor csak a feliratok frissülnek, a panelek és a válaszok maradnak
   S.slots.filter(s => s.active).forEach(s => {
