@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>MI-Aréna Web v1.4.1</title>
+<title>MI-Aréna Web v1.5</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -92,7 +92,7 @@ body.full .fback{display:block;margin:4px 8px 24px;width:calc(100% - 16px);paddi
 .modebtn.m-g{background:#1565c0;border-color:#1565c0;color:#fff}
 .modebtn.m-t{background:#6a1b9a;border-color:#6a1b9a;color:#fff}
 .modebtn.m-k{background:#37474f;border-color:#37474f;color:#fff}
-.brow .send{margin-left:auto;min-width:100px}
+.brow .send{margin-left:auto;min-width:0;padding:0 9px}
 .crow textarea{width:100%;min-width:0;resize:none;max-height:140px;background:var(--in);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .ic{min-width:40px;min-height:40px;font-size:18px}
 .send{min-height:40px;background:var(--ok);border-color:var(--ok);color:#fff;font-weight:700;padding:0 14px}
@@ -108,17 +108,17 @@ dialog::backdrop{background:#0008}
 .note{color:var(--mut);font-size:13px;margin:0 0 10px}
 .fld{display:block;margin-bottom:10px}
 .fld>span{display:block;font-size:13px;color:var(--mut);margin-bottom:2px}
-.fld input,.srow select{width:100%;background:var(--in);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.fld input,.srow select,.sbox select{width:100%;background:var(--in);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
 .inl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}
 .inl input{flex:1;min-width:0}
-.srow{border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:8px;display:grid;gap:6px}
+.srow,.sbox{border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:8px;display:grid;gap:6px}
 .sline{display:flex;justify-content:space-between;align-items:center}
 .chk{display:flex;gap:6px;align-items:center}
 </style>
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ MI-Aréna <small>Web v1.4.1</small></div>
+  <div class="brand">⚔️ MI-Aréna <small>Web v1.5</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
@@ -136,6 +136,7 @@ dialog::backdrop{background:#0008}
       <button id="bAtt" class="ic" title="Kép / PDF / szövegfájl csatolása">📎</button>
       <button id="bWeb" class="ic" type="button" title="Webes keresés (a küldéskor mindhárom AI-nál)">🌐</button>
       <button id="bMode" class="modebtn" type="button"></button>
+      <button id="bSum" class="ic" type="button">📝</button>
       <button id="bSend" class="send">Küldés</button>
     </div>
   </div>
@@ -164,19 +165,20 @@ const MODES = {
 
 /* Új szolgáltató felvételéhez: ide kerül egy új bejegyzés + egy call/list függvény */
 const PROVIDERS = {
-  gemini:    { label: 'Gemini', keyLabel: 'Gemini API-kulcs', strong: 'gemini-3.1-pro-preview', cheap: 'gemini-3.8-flash',
+  gemini:    { label: 'Gemini', keyLabel: 'Gemini API-kulcs', strong: 'gemini-3.1-pro-preview', cheap: 'gemini-3.8-flash', sum: 'gemini-3.8-flash',
                suggest: ['gemini-3.1-pro-preview', 'gemini-4-argon', 'gemini-pro-latest', 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'],
                call: callGemini, list: listGemini },
-  openai:    { label: 'GPT',    keyLabel: 'OpenAI (GPT) API-kulcs', strong: 'gpt-6-astra', cheap: 'gpt-6-luna',
+  openai:    { label: 'GPT',    keyLabel: 'OpenAI (GPT) API-kulcs', strong: 'gpt-6-astra', cheap: 'gpt-6-luna', sum: 'gpt-6-luna',
                suggest: ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.5-pro', 'gpt-5.5'],
                call: callOpenAI, list: listOpenAI },
-  anthropic: { label: 'Claude', keyLabel: 'Anthropic (Claude) API-kulcs', strong: 'claude-fable-5-1', cheap: 'claude-haiku-5-5',
+  anthropic: { label: 'Claude', keyLabel: 'Anthropic (Claude) API-kulcs', strong: 'claude-fable-5-1', cheap: 'claude-haiku-5-5', sum: 'claude-sonnet-5-5',
                suggest: ['claude-fable-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
                call: callAnthropic, list: listAnthropic }
 };
 const MODE_ICON = { 'Gyors': '⚡', 'Gondolkodó': '🧠', 'Kódoló': '💻' };
 const MODE_CLS = { 'Gyors': 'm-g', 'Gondolkodó': 'm-t', 'Kódoló': 'm-k' };
 const MODE_INFO = { 'Gyors': 'rövid, segítőkész válasz', 'Gondolkodó': 'először a lényeg, utána részletesen', 'Kódoló': 'tiszta kód' };
+const SUM_SYS = 'Összefoglaló asszisztens vagy. Egy kérdést és több MI válaszát kapod. Magyarul, tömören és jól tagoltan írd meg: 1) Közös rész: miben értenek egyet. 2) Eltérések: melyik MI mit mond másképp (nevezd meg őket). 3) Ellenőrizendő: ahol a tények vagy számok eltérnek, vagy valami bizonytalan. 4) Javasolt végső válasz a kérdésre, 2-5 mondatban. Ne ismételd meg a teljes válaszokat, és ne találj ki olyan tényt, ami nincs a válaszokban.';
 const MODE_HINT = { 'Gondolkodó': 'Gondolkodó (lényeg, majd részletek)' };
 const SEARCH_HINT = ' Ha a kérdéshez friss vagy ellenőrizendő információ kell, használd a webes keresést.';
 const TIERS = { strong: { icon: '💪', label: 'Erős' }, cheap: { icon: '💰', label: 'Olcsó' } };
@@ -194,6 +196,8 @@ function defaults() {
     theme: null,
     tier: 'cheap',
     search: false,
+    sum: true,
+    sumAI: { provider: 'anthropic', model: 'claude-sonnet-5-5' },
     mode: 'Gyors',
     about: '',
     keys: { gemini: '', openai: '', anthropic: '' },
@@ -211,6 +215,8 @@ function loadSettings() {
       if (raw.theme) d.theme = raw.theme;
       if (raw.tier === 'strong' || raw.tier === 'cheap') d.tier = raw.tier;
       d.search = raw.search === true;
+      d.sum = raw.sum !== false;
+      if (raw.sumAI && PROVIDERS[raw.sumAI.provider] && raw.sumAI.model) d.sumAI = { provider: raw.sumAI.provider, model: String(raw.sumAI.model) };
       if (MODES[raw.mode]) d.mode = raw.mode;
       else { const fs = Array.isArray(raw.slots) && raw.slots.find(x => x && x.active && MODES[x.mode]); if (fs) d.mode = fs.mode; }
       if (typeof raw.about === 'string') d.about = raw.about.slice(0, 2000);
@@ -350,8 +356,17 @@ let curId = null;
 function renderDeck() {
   deck.innerHTML = '';
   const act = S.slots.filter(s => s.active);
-  if (!act.length) {
+  if (!act.length && !S.sum) {
     deck.innerHTML = '<div class="panel"><div class="pbody"><div class="hint">Nincs aktív ablak. Nyisd meg a ⚙ Beállításokat.</div></div></div>';
+  }
+  if (S.sum) {
+    const sp = document.createElement('section');
+    sp.className = 'panel'; sp.dataset.id = 'sum';
+    sp.innerHTML = '<div class="phead"><span class="pname">📝 Összefoglaló</span><span class="pmodel">' + esc(S.sumAI.model) +
+      '</span><button type="button" data-act="copy" title="Utolsó összefoglaló másolása">📋</button>' +
+      '<button type="button" data-act="full" title="Teljes oldalas nézet (görgetős képernyőképhez)">⛶</button>' +
+      '<button type="button" data-act="reset" title="Az összefoglaló törlése">↺</button></div><div class="pbody"></div>';
+    deck.appendChild(sp); paintBody('sum');
   }
   act.forEach(s => {
     const p = document.createElement('section');
@@ -370,7 +385,7 @@ function renderDeck() {
   deck.querySelectorAll('.panel[data-id]').forEach(p => io.observe(p));
 }
 function renderChips() {
-  $('chips').innerHTML = S.slots.filter(s => s.active).map(s =>
+  $('chips').innerHTML = (S.sum ? '<div class="chip" data-id="sum"><span class="cl">📝 Összefoglaló</span></div>' : '') + S.slots.filter(s => s.active).map(s =>
     '<div class="chip' + (s.send === false ? ' off' : '') + '" data-id="' + s.id + '"><input type="checkbox" class="ck" title="Kapjon-e kérdést ez az AI?"' + (s.send === false ? '' : ' checked') + '><span class="cl">' + esc(PROVIDERS[s.provider].label + ' · ' + modelOf(s)) + '</span></div>').join('');
   if (curId != null) setActiveChip(curId);
 }
@@ -411,7 +426,7 @@ deck.addEventListener('click', e => {
   const cp = e.target.closest('.cp');
   if (cp) { const pre = cp.parentElement.querySelector('pre'); if (pre) copyText(pre.textContent); return; }
   const b = e.target.closest('button[data-act]'); if (!b) return;
-  const id = +b.closest('.panel').dataset.id;
+  const id = b.closest('.panel').dataset.id;
   if (b.dataset.act === 'copy') {
     const last = [...getConvo(id).view].reverse().find(v => v.role === 'ai');
     if (last) copyText(last.text); else toast('Még nincs válasz.');
@@ -652,17 +667,40 @@ async function runSlot(slot, turn) {
   paintBody(slot.id);
   const ctrl = new AbortController(); controllers.push(ctrl);
   const t0 = performance.now();
+  let res = { ok: false };
   try {
     const r = await PROVIDERS[slot.provider].call(eff, c.history, turn, sys, ctrl.signal);
     c.view = c.view.filter(v => v.role !== 'wait');
     const sec = ((performance.now() - t0) / 1000).toFixed(1);
     c.view.push({ role: 'ai', model: eff.model, sources: r.sources || [], text: r.text || '(üres válasz)', meta: eff.model + ' · ' + r.usage + ' · ' + sec + ' mp' + (r.note ? ' · ' + r.note : '') });
     c.history.push({ role: 'user', text: turn.prompt + turn.note }, { role: 'assistant', text: r.text });
+    res = { ok: true, label: PROVIDERS[slot.provider].label, model: eff.model, text: r.text || '' };
   } catch (e) {
     c.view = c.view.filter(v => v.role !== 'wait');
     c.view.push({ role: 'err', text: '[' + eff.model + '] ' + friendlyError(e) });
   }
   paintBody(slot.id);
+  return res;
+}
+async function runSummary(turn, oks) {
+  const c = getConvo('sum'), P = S.sumAI, eff = { provider: P.provider, model: P.model };
+  c.view.push({ role: 'user', text: turn.prompt, files: turn.names });
+  c.view.push({ role: 'wait' });
+  paintBody('sum');
+  const fullText = 'Kérdés:\n' + turn.prompt + '\n\n' + oks.map(a => '=== ' + a.label + ' (' + a.model + ') válasza ===\n' + a.text.slice(0, 12000)).join('\n\n');
+  const sturn = { prompt: turn.prompt, fullText, files: [], names: [], note: '', search: false };
+  const ctrl = new AbortController(); controllers.push(ctrl);
+  const t0 = performance.now();
+  try {
+    const r = await PROVIDERS[P.provider].call(eff, [], sturn, SUM_SYS, ctrl.signal);
+    c.view = c.view.filter(v => v.role !== 'wait');
+    const sec = ((performance.now() - t0) / 1000).toFixed(1);
+    c.view.push({ role: 'ai', model: P.model, sources: [], text: r.text || '(üres válasz)', meta: P.model + ' · ' + r.usage + ' · ' + sec + ' mp' + (r.note ? ' · ' + r.note : '') });
+  } catch (e) {
+    c.view = c.view.filter(v => v.role !== 'wait');
+    c.view.push({ role: 'err', text: '[' + P.model + '] ' + friendlyError(e) });
+  }
+  paintBody('sum');
 }
 function setSendBtn() {
   const b = $('bSend');
@@ -682,7 +720,12 @@ async function send() {
   const turn = { prompt, fullText, files, names, search: !!S.search, note: names.length ? '\n[Csatolva: ' + names.join(', ') + ']' : '' };
   $('inp').value = ''; autoGrow(); attachments = []; renderAtts();
   busy = true; controllers = []; setSendBtn();
-  await Promise.allSettled(act.map(s => runSlot(s, turn)));
+  const results = await Promise.allSettled(act.map(s => runSlot(s, turn)));
+  if (S.sum) {
+    const oks = results.map(r => r.value).filter(v => v && v.ok && v.text);
+    if (oks.length >= 2) await runSummary(turn, oks);
+    else if (act.length >= 2) toast('Összefoglaló kihagyva: legalább két sikeres válasz kell.');
+  }
   busy = false; setSendBtn();
 }
 function updateModeBtn() {
@@ -693,6 +736,11 @@ function updateModeBtn() {
 $('bMode').addEventListener('click', () => {
   const ks = Object.keys(MODES); S.mode = ks[(ks.indexOf(S.mode) + 1) % ks.length];
   saveSettings(); updateModeBtn(); toast(MODE_ICON[S.mode] + ' ' + S.mode + ': ' + MODE_INFO[S.mode]);
+});
+function updateSumBtn() { $('bSum').classList.toggle('on', !!S.sum); $('bSum').title = S.sum ? 'Összefoglaló BE – kikapcsolás' : 'Összefoglaló KI – bekapcsolás'; }
+$('bSum').addEventListener('click', () => {
+  S.sum = !S.sum; saveSettings(); updateSumBtn(); renderDeck();
+  toast(S.sum ? '📝 Összefoglaló BE: ' + PROVIDERS[S.sumAI.provider].label + ' · ' + S.sumAI.model : '📝 Összefoglaló KI');
 });
 function updateWebBtn() { $('bWeb').classList.toggle('on', !!S.search); $('bWeb').title = S.search ? 'Webes keresés BE – kikapcsolás' : 'Webes keresés KI – bekapcsolás'; }
 $('bWeb').addEventListener('click', () => {
@@ -721,10 +769,10 @@ $('bExp').addEventListener('click', () => {
   const now = new Date(), pad = n => String(n).padStart(2, '0');
   const stamp = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
   let out = '';
-  S.slots.filter(s => s.active).forEach(s => {
-    const v = getConvo(s.id).view.filter(x => x.role === 'user' || x.role === 'ai' || x.role === 'err');
+  [{ label: 'Összefoglaló (' + S.sumAI.model + ')', id: 'sum' }].concat(S.slots.filter(s => s.active).map(s => ({ label: PROVIDERS[s.provider].label + ' (' + S.mode + ')', id: s.id }))).forEach(it => {
+    const v = getConvo(it.id).view.filter(x => x.role === 'user' || x.role === 'ai' || x.role === 'err');
     if (!v.length) return;
-    out += 'DÁTUM: ' + stamp + '\nMI: ' + PROVIDERS[s.provider].label + ' (' + S.mode + ')\n\n';
+    out += 'DÁTUM: ' + stamp + '\nMI: ' + it.label + '\n\n';
     v.forEach(x => { out += (x.role === 'user' ? 'KÉRDÉS:\n' : x.role === 'ai' ? 'VÁLASZ' + (x.model ? ' (' + x.model + ')' : '') + ':\n' : 'HIBA:\n') + x.text + '\n' + (x.sources && x.sources.length ? '\nFORRÁSOK:\n' + x.sources.map(z => '- ' + z.title + ': ' + z.url).join('\n') + '\n' : '') + '\n'; });
     out += '='.repeat(70) + '\n\n';
   });
@@ -749,6 +797,12 @@ function modelSelect(field, s) {
   const opts = modelOptions(s.provider, cur).map(m => '<option value="' + esc(m) + '"' + (m === cur ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
   return '<span class="mlbl">' + TIERS[field].icon + ' ' + TIERS[field].label + ' modell</span><select data-f="' + field + '">' + opts + '<option value="__custom">✎ Egyéni modellnév…</option></select>';
 }
+function renderSum() {
+  const a = draft.sumAI;
+  const opts = modelOptions(a.provider, a.model).map(m => '<option value="' + esc(m) + '"' + (m === a.model ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
+  $('sumBox').innerHTML = '<select data-f="sumProvider">' + Object.keys(PROVIDERS).map(k => '<option value="' + k + '"' + (k === a.provider ? ' selected' : '') + '>' + esc(PROVIDERS[k].label) + '</option>').join('') + '</select>' +
+    '<span class="mlbl">Modell</span><select data-f="sumModel">' + opts + '<option value="__custom">✎ Egyéni modellnév…</option></select>';
+}
 function renderRows() {
   $('rows').innerHTML = draft.slots.map((s, i) =>
     '<div class="srow" data-i="' + i + '"><div class="sline"><label class="chk"><input type="checkbox" data-f="active"' + (s.active ? ' checked' : '') + '> ' + (i + 1) + '. ablak aktív</label>' +
@@ -764,10 +818,11 @@ function openSettings() {
     Object.keys(PROVIDERS).map(k => '<label class="fld"><span>' + esc(PROVIDERS[k].keyLabel) + '</span><div class="inl"><input type="password" id="key-' + k + '" autocomplete="off" spellcheck="false" value="' + esc(draft.keys[k] || '') + '"><button type="button" class="ic" data-show="' + k + '">👁</button></div></label>').join('') +
     '<label class="fld"><span>Rólam / egyéni utasítás (minden AI megkapja minden kérdésnél)</span><textarea id="about" rows="4" maxlength="2000" style="width:100%;background:var(--in);border:1px solid var(--line);border-radius:8px;padding:7px 9px;resize:vertical" placeholder="Pl.: Norbi vagyok, magyarul válaszolj, tömören és érthetően. Hobbi fejlesztő vagyok, Python és webes eszközök.">' + esc(draft.about || '') + '</textarea></label>' +
     '<label class="fld"><span>Claude max. válaszhossz (token)</span><input type="number" id="maxTok" min="256" max="64000" step="256" value="' + (+draft.maxTokens || 4096) + '"></label>' +
+    '<h3>Összefoglaló AI</h3><p class="note">Ez foglalja össze a válaszok közös részeit és különbségeit (legalább két válasz kell hozzá). A főképernyőn a 📝 gombbal kapcsolható be és ki. Az első ablakban jelenik meg.</p><div id="sumBox" class="sbox"></div>' +
     '<h3>Ablakok</h3><p class="note">Mindegyik AI-nak két modellje van: 💪 erős és 💰 olcsó. A főképernyőn a bal felső gombbal váltasz köztük. A módot (⚡ Gyors / 🧠 Gondolkodó / 💻 Kódoló) a beírómező alatti gombbal állítod.</p><div id="rows"></div>' +
     '<div class="inl"><button type="button" id="addSlot">+ Ablak</button><button type="button" id="fetchModels">🔄 Modellek lekérdezése</button></div>' +
     '<div class="inl"><button type="button" id="clearKeys" class="danger">Kulcsok törlése</button></div>';
-  renderRows();
+  renderRows(); renderSum();
   dlg.showModal();
 }
 function readKeysFromInputs() {
@@ -777,6 +832,12 @@ function readKeysFromInputs() {
 }
 dlg.addEventListener('change', e => {
   const f = e.target.dataset && e.target.dataset.f; if (!f) return;
+  if (f === 'sumProvider') { draft.sumAI.provider = e.target.value; draft.sumAI.model = PROVIDERS[e.target.value].sum; renderSum(); return; }
+  if (f === 'sumModel') {
+    if (e.target.value === '__custom') { const n = (prompt('Add meg a pontos modellnevet:', draft.sumAI.model) || '').trim(); if (n) draft.sumAI.model = n; renderSum(); }
+    else draft.sumAI.model = e.target.value;
+    return;
+  }
   const i = +e.target.closest('.srow').dataset.i, s = draft.slots[i];
   if (f === 'active') s.active = e.target.checked;
   else if (f === 'mode') s.mode = e.target.value;
@@ -811,7 +872,7 @@ dlg.addEventListener('click', async e => {
       catch (err) { bad.push(PROVIDERS[k].label); }
     }));
     t.disabled = false; t.textContent = '🔄 Modellek lekérdezése';
-    renderRows();
+    renderRows(); renderSum();
     toast((ok.length ? 'Betöltve: ' + ok.join(', ') + '. ' : '') + (bad.length ? 'Hiba: ' + bad.join(', ') + '.' : '') || 'Előbb adj meg legalább egy kulcsot.');
   }
 });
@@ -835,6 +896,7 @@ renderDeck();
 updateTierBtn();
 updateWebBtn();
 updateModeBtn();
+updateSumBtn();
 if (!S.keys.gemini && !S.keys.openai && !S.keys.anthropic) setTimeout(() => toast('Első lépés: ⚙ → API-kulcsok megadása'), 600);
 })();
 </script>
