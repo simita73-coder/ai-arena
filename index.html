@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>MI-Aréna Web v1.2</title>
+<title>MI-Aréna Web v1.3</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -77,7 +77,7 @@ body.full .fback{display:block;margin:4px 8px 24px;width:calc(100% - 16px);paddi
 .md .code pre code{background:none;padding:0;white-space:pre}
 .md .code .cp{position:absolute;top:4px;right:4px;font-size:11px;padding:1px 7px;opacity:.85}
 .md table{border-collapse:collapse;margin:0 0 10px;display:block;overflow-x:auto}
-.md th,.md td{border:1px solid var(--line);padding:4px 8px;text-align:left}
+.md th,.md td{border:1px solid var(--line);padding:4px 8px;text-align:left;min-width:92px;overflow-wrap:normal;word-break:normal;vertical-align:top}
 .md a{color:var(--acc)}
 .composer{flex:0 0 auto;background:var(--bar);border-top:1px solid var(--line);padding:8px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
 .atts{display:flex;gap:6px;overflow-x:auto;margin-bottom:6px}
@@ -86,8 +86,10 @@ body.full .fback{display:block;margin:4px 8px 24px;width:calc(100% - 16px);paddi
 .att img{width:34px;height:34px;object-fit:cover;border-radius:4px}
 .att span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .att button{padding:0 6px;border:0;background:none;font-size:16px}
-.crow{display:flex;gap:6px;align-items:flex-end}
-.crow textarea{flex:1;min-width:0;resize:none;max-height:140px;background:var(--in);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.crow{display:flex;flex-direction:column;gap:6px}
+.brow{display:flex;gap:6px;align-items:center}
+.brow .send{margin-left:auto;min-width:120px}
+.crow textarea{width:100%;min-width:0;resize:none;max-height:140px;background:var(--in);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .ic{min-width:40px;min-height:40px;font-size:18px}
 .send{min-height:40px;background:var(--ok);border-color:var(--ok);color:#fff;font-weight:700;padding:0 14px}
 .send.stop{background:var(--err);border-color:var(--err)}
@@ -112,7 +114,7 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ MI-Aréna <small>Web v1.2</small></div>
+  <div class="brand">⚔️ MI-Aréna <small>Web v1.3</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
@@ -125,10 +127,12 @@ dialog::backdrop{background:#0008}
 <footer class="composer">
   <div id="atts" class="atts"></div>
   <div class="crow">
-    <button id="bAtt" class="ic" title="Kép / PDF / szövegfájl csatolása">📎</button>
-    <button id="bWeb" class="ic" type="button" title="Webes keresés (a küldéskor mindhárom AI-nál)">🌐</button>
     <textarea id="inp" rows="1" placeholder="Kérdés…"></textarea>
-    <button id="bSend" class="send">Küldés</button>
+    <div class="brow">
+      <button id="bAtt" class="ic" title="Kép / PDF / szövegfájl csatolása">📎</button>
+      <button id="bWeb" class="ic" type="button" title="Webes keresés (a küldéskor mindhárom AI-nál)">🌐</button>
+      <button id="bSend" class="send">Küldés</button>
+    </div>
   </div>
   <input id="file" type="file" hidden multiple accept="image/*,application/pdf,.pdf,.txt,.md,.csv,.json,.py,.js,.ts,.html,.css,.xml,.yml,.yaml,.ini,.log,.sql,.bat,.sh,.cfg,.toml">
 </footer>
@@ -182,6 +186,7 @@ function defaults() {
     theme: null,
     tier: 'cheap',
     search: false,
+    about: '',
     keys: { gemini: '', openai: '', anthropic: '' },
     maxTokens: 4096,
     models: {},
@@ -197,6 +202,7 @@ function loadSettings() {
       if (raw.theme) d.theme = raw.theme;
       if (raw.tier === 'strong' || raw.tier === 'cheap') d.tier = raw.tier;
       d.search = raw.search === true;
+      if (typeof raw.about === 'string') d.about = raw.about.slice(0, 2000);
       if (raw.keys) Object.keys(d.keys).forEach(k => { if (typeof raw.keys[k] === 'string') d.keys[k] = raw.keys[k]; });
       if (raw.maxTokens) d.maxTokens = +raw.maxTokens || 4096;
       if (raw.models && typeof raw.models === 'object') d.models = raw.models;
@@ -629,7 +635,7 @@ function friendlyError(e) {
 async function runSlot(slot, turn) {
   const c = getConvo(slot.id);
   const eff = Object.assign({}, slot, { model: modelOf(slot) });
-  const sys = (MODES[slot.mode] || MODES['Gyors']) + (turn.search ? SEARCH_HINT : '');   // a küldéskor érvényes modell
+  const sys = (MODES[slot.mode] || MODES['Gyors']) + (S.about && S.about.trim() ? '\n\nTudnivalók a felhasználóról (vedd figyelembe a válaszadáskor): ' + S.about.trim() : '') + (turn.search ? SEARCH_HINT : '');   // a küldéskor érvényes modell
   c.view.push({ role: 'user', text: turn.prompt, files: turn.names });
   c.view.push({ role: 'wait' });
   paintBody(slot.id);
@@ -736,6 +742,7 @@ function openSettings() {
   $('dlgBody').innerHTML = '<h2>Beállítások</h2>' +
     '<p class="note">Az API-kulcsok csak ebben a böngészőben (helyi tárolóban) maradnak, a kódban nincsenek. Minden eszközön külön kell megadni őket. A szolgáltatóknál érdemes költséghatárt beállítani.</p>' +
     Object.keys(PROVIDERS).map(k => '<label class="fld"><span>' + esc(PROVIDERS[k].keyLabel) + '</span><div class="inl"><input type="password" id="key-' + k + '" autocomplete="off" spellcheck="false" value="' + esc(draft.keys[k] || '') + '"><button type="button" class="ic" data-show="' + k + '">👁</button></div></label>').join('') +
+    '<label class="fld"><span>Rólam / egyéni utasítás (minden AI megkapja minden kérdésnél)</span><textarea id="about" rows="4" maxlength="2000" style="width:100%;background:var(--in);border:1px solid var(--line);border-radius:8px;padding:7px 9px;resize:vertical" placeholder="Pl.: Norbi vagyok, magyarul válaszolj, tömören és érthetően. Hobbi fejlesztő vagyok, Python és webes eszközök.">' + esc(draft.about || '') + '</textarea></label>' +
     '<label class="fld"><span>Claude max. válaszhossz (token)</span><input type="number" id="maxTok" min="256" max="64000" step="256" value="' + (+draft.maxTokens || 4096) + '"></label>' +
     '<h3>Ablakok</h3><p class="note">Mindegyik AI-nak két modellje van: 💪 erős és 💰 olcsó. A főképernyőn a bal felső gombbal váltasz köztük.</p><div id="rows"></div>' +
     '<div class="inl"><button type="button" id="addSlot">+ Ablak</button><button type="button" id="fetchModels">🔄 Modellek lekérdezése</button></div>' +
@@ -745,6 +752,7 @@ function openSettings() {
 }
 function readKeysFromInputs() {
   Object.keys(PROVIDERS).forEach(k => { const el = $('key-' + k); if (el) draft.keys[k] = el.value.trim(); });
+  const ab = $('about'); if (ab) draft.about = ab.value.trim().slice(0, 2000);
   const mt = parseInt($('maxTok').value, 10); draft.maxTokens = mt >= 256 ? mt : 4096;
 }
 dlg.addEventListener('change', e => {
