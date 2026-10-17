@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>MI-Aréna Web v1.4</title>
+<title>MI-Aréna Web v1.4.1</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -88,7 +88,7 @@ body.full .fback{display:block;margin:4px 8px 24px;width:calc(100% - 16px);paddi
 .att button{padding:0 6px;border:0;background:none;font-size:16px}
 .crow{display:flex;flex-direction:column;gap:6px}
 .brow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.modebtn{min-height:40px;padding:0 12px;font-size:14px;font-weight:700;white-space:nowrap}
+.modebtn{min-width:40px;min-height:40px;padding:0;font-size:18px;white-space:nowrap}
 .modebtn.m-g{background:#1565c0;border-color:#1565c0;color:#fff}
 .modebtn.m-t{background:#6a1b9a;border-color:#6a1b9a;color:#fff}
 .modebtn.m-k{background:#37474f;border-color:#37474f;color:#fff}
@@ -118,7 +118,7 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ MI-Aréna <small>Web v1.4</small></div>
+  <div class="brand">⚔️ MI-Aréna <small>Web v1.4.1</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
@@ -686,7 +686,7 @@ async function send() {
   busy = false; setSendBtn();
 }
 function updateModeBtn() {
-  const b = $('bMode'); b.textContent = MODE_ICON[S.mode] + ' ' + S.mode; b.className = 'modebtn ' + MODE_CLS[S.mode];
+  const b = $('bMode'); b.textContent = MODE_ICON[S.mode]; b.setAttribute('aria-label', 'Mód: ' + S.mode); b.className = 'modebtn ' + MODE_CLS[S.mode];
   b.title = 'Mód: ' + S.mode + ' (' + MODE_INFO[S.mode] + ') – koppints a váltáshoz';
   document.querySelectorAll('.pmode').forEach(e => { e.textContent = S.mode; });
 }
