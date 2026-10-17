@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>MI-Aréna Web v1.3</title>
+<title>MI-Aréna Web v1.4</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -87,8 +87,12 @@ body.full .fback{display:block;margin:4px 8px 24px;width:calc(100% - 16px);paddi
 .att span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .att button{padding:0 6px;border:0;background:none;font-size:16px}
 .crow{display:flex;flex-direction:column;gap:6px}
-.brow{display:flex;gap:6px;align-items:center}
-.brow .send{margin-left:auto;min-width:120px}
+.brow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.modebtn{min-height:40px;padding:0 12px;font-size:14px;font-weight:700;white-space:nowrap}
+.modebtn.m-g{background:#1565c0;border-color:#1565c0;color:#fff}
+.modebtn.m-t{background:#6a1b9a;border-color:#6a1b9a;color:#fff}
+.modebtn.m-k{background:#37474f;border-color:#37474f;color:#fff}
+.brow .send{margin-left:auto;min-width:100px}
 .crow textarea{width:100%;min-width:0;resize:none;max-height:140px;background:var(--in);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .ic{min-width:40px;min-height:40px;font-size:18px}
 .send{min-height:40px;background:var(--ok);border-color:var(--ok);color:#fff;font-weight:700;padding:0 14px}
@@ -114,7 +118,7 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ MI-Aréna <small>Web v1.3</small></div>
+  <div class="brand">⚔️ MI-Aréna <small>Web v1.4</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
@@ -131,6 +135,7 @@ dialog::backdrop{background:#0008}
     <div class="brow">
       <button id="bAtt" class="ic" title="Kép / PDF / szövegfájl csatolása">📎</button>
       <button id="bWeb" class="ic" type="button" title="Webes keresés (a küldéskor mindhárom AI-nál)">🌐</button>
+      <button id="bMode" class="modebtn" type="button"></button>
       <button id="bSend" class="send">Küldés</button>
     </div>
   </div>
@@ -169,6 +174,9 @@ const PROVIDERS = {
                suggest: ['claude-fable-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
                call: callAnthropic, list: listAnthropic }
 };
+const MODE_ICON = { 'Gyors': '⚡', 'Gondolkodó': '🧠', 'Kódoló': '💻' };
+const MODE_CLS = { 'Gyors': 'm-g', 'Gondolkodó': 'm-t', 'Kódoló': 'm-k' };
+const MODE_INFO = { 'Gyors': 'rövid, segítőkész válasz', 'Gondolkodó': 'először a lényeg, utána részletesen', 'Kódoló': 'tiszta kód' };
 const MODE_HINT = { 'Gondolkodó': 'Gondolkodó (lényeg, majd részletek)' };
 const SEARCH_HINT = ' Ha a kérdéshez friss vagy ellenőrizendő információ kell, használd a webes keresést.';
 const TIERS = { strong: { icon: '💪', label: 'Erős' }, cheap: { icon: '💰', label: 'Olcsó' } };
@@ -186,6 +194,7 @@ function defaults() {
     theme: null,
     tier: 'cheap',
     search: false,
+    mode: 'Gyors',
     about: '',
     keys: { gemini: '', openai: '', anthropic: '' },
     maxTokens: 4096,
@@ -202,6 +211,8 @@ function loadSettings() {
       if (raw.theme) d.theme = raw.theme;
       if (raw.tier === 'strong' || raw.tier === 'cheap') d.tier = raw.tier;
       d.search = raw.search === true;
+      if (MODES[raw.mode]) d.mode = raw.mode;
+      else { const fs = Array.isArray(raw.slots) && raw.slots.find(x => x && x.active && MODES[x.mode]); if (fs) d.mode = fs.mode; }
       if (typeof raw.about === 'string') d.about = raw.about.slice(0, 2000);
       if (raw.keys) Object.keys(d.keys).forEach(k => { if (typeof raw.keys[k] === 'string') d.keys[k] = raw.keys[k]; });
       if (raw.maxTokens) d.maxTokens = +raw.maxTokens || 4096;
@@ -346,7 +357,7 @@ function renderDeck() {
     const p = document.createElement('section');
     p.className = 'panel' + (s.send === false ? ' off' : ''); p.dataset.id = s.id;
     p.innerHTML = '<div class="phead"><span class="pname">' + esc(PROVIDERS[s.provider].label) + '</span><span class="pmodel">' + esc(modelOf(s)) +
-      '</span><span class="pmode">' + esc(s.mode) + '</span><button type="button" data-act="copy" title="Utolsó válasz másolása">📋</button>' +
+      '</span><span class="pmode">' + esc(S.mode) + '</span><button type="button" data-act="copy" title="Utolsó válasz másolása">📋</button>' +
       '<button type="button" data-act="full" title="Teljes oldalas nézet (görgetős képernyőképhez)">⛶</button><button type="button" data-act="reset" title="Ennek az ablaknak az újraindítása">↺</button></div><div class="pbody"></div>';
     deck.appendChild(p);
     paintBody(s.id);
@@ -635,7 +646,7 @@ function friendlyError(e) {
 async function runSlot(slot, turn) {
   const c = getConvo(slot.id);
   const eff = Object.assign({}, slot, { model: modelOf(slot) });
-  const sys = (MODES[slot.mode] || MODES['Gyors']) + (S.about && S.about.trim() ? '\n\nTudnivalók a felhasználóról (vedd figyelembe a válaszadáskor): ' + S.about.trim() : '') + (turn.search ? SEARCH_HINT : '');   // a küldéskor érvényes modell
+  const sys = (MODES[S.mode] || MODES['Gyors']) + (S.about && S.about.trim() ? '\n\nTudnivalók a felhasználóról (vedd figyelembe a válaszadáskor): ' + S.about.trim() : '') + (turn.search ? SEARCH_HINT : '');   // a küldéskor érvényes modell
   c.view.push({ role: 'user', text: turn.prompt, files: turn.names });
   c.view.push({ role: 'wait' });
   paintBody(slot.id);
@@ -674,6 +685,15 @@ async function send() {
   await Promise.allSettled(act.map(s => runSlot(s, turn)));
   busy = false; setSendBtn();
 }
+function updateModeBtn() {
+  const b = $('bMode'); b.textContent = MODE_ICON[S.mode] + ' ' + S.mode; b.className = 'modebtn ' + MODE_CLS[S.mode];
+  b.title = 'Mód: ' + S.mode + ' (' + MODE_INFO[S.mode] + ') – koppints a váltáshoz';
+  document.querySelectorAll('.pmode').forEach(e => { e.textContent = S.mode; });
+}
+$('bMode').addEventListener('click', () => {
+  const ks = Object.keys(MODES); S.mode = ks[(ks.indexOf(S.mode) + 1) % ks.length];
+  saveSettings(); updateModeBtn(); toast(MODE_ICON[S.mode] + ' ' + S.mode + ': ' + MODE_INFO[S.mode]);
+});
 function updateWebBtn() { $('bWeb').classList.toggle('on', !!S.search); $('bWeb').title = S.search ? 'Webes keresés BE – kikapcsolás' : 'Webes keresés KI – bekapcsolás'; }
 $('bWeb').addEventListener('click', () => {
   S.search = !S.search; saveSettings(); updateWebBtn();
@@ -704,7 +724,7 @@ $('bExp').addEventListener('click', () => {
   S.slots.filter(s => s.active).forEach(s => {
     const v = getConvo(s.id).view.filter(x => x.role === 'user' || x.role === 'ai' || x.role === 'err');
     if (!v.length) return;
-    out += 'DÁTUM: ' + stamp + '\nMI: ' + PROVIDERS[s.provider].label + ' (' + s.mode + ')\n\n';
+    out += 'DÁTUM: ' + stamp + '\nMI: ' + PROVIDERS[s.provider].label + ' (' + S.mode + ')\n\n';
     v.forEach(x => { out += (x.role === 'user' ? 'KÉRDÉS:\n' : x.role === 'ai' ? 'VÁLASZ' + (x.model ? ' (' + x.model + ')' : '') + ':\n' : 'HIBA:\n') + x.text + '\n' + (x.sources && x.sources.length ? '\nFORRÁSOK:\n' + x.sources.map(z => '- ' + z.title + ': ' + z.url).join('\n') + '\n' : '') + '\n'; });
     out += '='.repeat(70) + '\n\n';
   });
@@ -735,7 +755,7 @@ function renderRows() {
     '<button type="button" class="danger" data-del="' + i + '">Törlés</button></div>' +
     '<select data-f="provider">' + Object.keys(PROVIDERS).map(k => '<option value="' + k + '"' + (k === s.provider ? ' selected' : '') + '>' + esc(PROVIDERS[k].label) + '</option>').join('') + '</select>' +
     modelSelect('strong', s) + modelSelect('cheap', s) +
-    '<select data-f="mode">' + Object.keys(MODES).map(k => '<option value="' + k + '"' + (k === s.mode ? ' selected' : '') + '>' + esc(MODE_HINT[k] || k) + '</option>').join('') + '</select></div>').join('');
+    '</div>').join('');
 }
 function openSettings() {
   draft = JSON.parse(JSON.stringify(S));
@@ -744,7 +764,7 @@ function openSettings() {
     Object.keys(PROVIDERS).map(k => '<label class="fld"><span>' + esc(PROVIDERS[k].keyLabel) + '</span><div class="inl"><input type="password" id="key-' + k + '" autocomplete="off" spellcheck="false" value="' + esc(draft.keys[k] || '') + '"><button type="button" class="ic" data-show="' + k + '">👁</button></div></label>').join('') +
     '<label class="fld"><span>Rólam / egyéni utasítás (minden AI megkapja minden kérdésnél)</span><textarea id="about" rows="4" maxlength="2000" style="width:100%;background:var(--in);border:1px solid var(--line);border-radius:8px;padding:7px 9px;resize:vertical" placeholder="Pl.: Norbi vagyok, magyarul válaszolj, tömören és érthetően. Hobbi fejlesztő vagyok, Python és webes eszközök.">' + esc(draft.about || '') + '</textarea></label>' +
     '<label class="fld"><span>Claude max. válaszhossz (token)</span><input type="number" id="maxTok" min="256" max="64000" step="256" value="' + (+draft.maxTokens || 4096) + '"></label>' +
-    '<h3>Ablakok</h3><p class="note">Mindegyik AI-nak két modellje van: 💪 erős és 💰 olcsó. A főképernyőn a bal felső gombbal váltasz köztük.</p><div id="rows"></div>' +
+    '<h3>Ablakok</h3><p class="note">Mindegyik AI-nak két modellje van: 💪 erős és 💰 olcsó. A főképernyőn a bal felső gombbal váltasz köztük. A módot (⚡ Gyors / 🧠 Gondolkodó / 💻 Kódoló) a beírómező alatti gombbal állítod.</p><div id="rows"></div>' +
     '<div class="inl"><button type="button" id="addSlot">+ Ablak</button><button type="button" id="fetchModels">🔄 Modellek lekérdezése</button></div>' +
     '<div class="inl"><button type="button" id="clearKeys" class="danger">Kulcsok törlése</button></div>';
   renderRows();
@@ -799,7 +819,7 @@ $('dCancel').addEventListener('click', () => dlg.close());
 $('dSave').addEventListener('click', () => {
   readKeysFromInputs();
   draft.slots.forEach(s => { const P = PROVIDERS[s.provider]; s.models.strong = s.models.strong || P.strong; s.models.cheap = s.models.cheap || P.cheap; });
-  S = draft; saveSettings(); dlg.close(); renderDeck(); updateTierBtn(); toast('Beállítások elmentve');
+  S = draft; saveSettings(); dlg.close(); renderDeck(); updateTierBtn(); updateModeBtn(); toast('Beállítások elmentve');
 });
 $('bSet').addEventListener('click', openSettings);
 
@@ -814,6 +834,7 @@ applyTheme();
 renderDeck();
 updateTierBtn();
 updateWebBtn();
+updateModeBtn();
 if (!S.keys.gemini && !S.keys.openai && !S.keys.anthropic) setTimeout(() => toast('Első lépés: ⚙ → API-kulcsok megadása'), 600);
 })();
 </script>
