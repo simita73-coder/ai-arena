@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>AI-Aréna Web v1.8</title>
+<title>AI-Aréna Web v1.9</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -102,7 +102,10 @@ body.full .fback{display:block;margin:4px 8px 24px;width:calc(100% - 16px);paddi
 .modebtn.m-t{background:#6a1b9a;border-color:#6a1b9a;color:#fff}
 .modebtn.m-k{background:#37474f;border-color:#37474f;color:#fff}
 .brow .send{flex:0 0 auto;margin-left:0;min-width:0;padding:0 9px}
-.crow textarea{width:100%;min-width:0;resize:none;max-height:140px;background:var(--in);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.irow{display:flex;gap:6px;align-items:flex-end}
+.irow .ic.on{background:var(--err);border-color:var(--err);color:#fff}
+.irow .ic{flex:0 0 auto}
+.crow textarea{flex:1;width:auto;min-width:0;resize:none;max-height:140px;background:var(--in);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .ic{min-width:40px;min-height:40px;font-size:18px}
 .send{min-height:40px;background:var(--ok);border-color:var(--ok);color:#fff;font-weight:700;padding:0 14px}
 .send.stop{background:var(--err);border-color:var(--err)}
@@ -127,7 +130,7 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ AI-Aréna <small>Web v1.8</small></div>
+  <div class="brand">⚔️ AI-Aréna <small>Web v1.9</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
@@ -143,7 +146,11 @@ dialog::backdrop{background:#0008}
 <footer class="composer">
   <div id="atts" class="atts"></div>
   <div class="crow">
-    <textarea id="inp" rows="1" placeholder="Kérdés…"></textarea>
+    <div class="irow">
+      <textarea id="inp" rows="1" placeholder="Kérdés…"></textarea>
+      <button id="bMic" class="ic" type="button" title="Diktálás magyarul – koppints, beszélj, újra koppintva leáll">🎤</button>
+      <button id="bSpk" class="ic" type="button" title="Az aktuális ablak utolsó válaszának felolvasása – újra koppintva leáll">🔊</button>
+    </div>
     <div class="brow">
       <div class="tools">
         <button id="bAtt" class="ic" title="Kép / PDF / szövegfájl csatolása">📎</button>
@@ -890,6 +897,7 @@ async function send() {
   const fullText = prompt + files.filter(f => f.kind === 'text').map(f => '\n\n--- ' + f.name + ' ---\n' + f.text).join('');
   const names = files.map(f => f.name);
   const turn = { prompt, fullText, files, names, search: !!S.search, note: names.length ? '\n[Csatolva: ' + names.join(', ') + ']' : '' };
+  if (micWant) micStop(); spkStop();
   $('inp').value = ''; autoGrow(); attachments = []; renderAtts();
   if (S.sum && act.length >= 2) {
     turn.prog = { role: 'prog', items: act.map(s => ({ id: s.id, label: PROVIDERS[s.provider].label, state: 'wait', sec: '' })), sum: 'idle' };
@@ -950,6 +958,93 @@ $('bWeb').addEventListener('click', () => {
 });
 function autoGrow() { const t = $('inp'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 140) + 'px'; }
 $('inp').addEventListener('input', autoGrow);
+
+/* ============ Diktálás és felolvasás (a böngésző beépített magyar hangjával) ============ */
+const SPEECH_LANG = 'hu-HU';
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, micWant = false, micBase = '', micFinal = '';
+function micUI(on) { $('bMic').classList.toggle('on', on); $('bMic').textContent = on ? '⏹' : '🎤'; }
+function micStop() { micWant = false; if (rec) { try { rec.stop(); } catch (e) {} } micUI(false); }
+function micStart() {
+  if (!SR) { toast('Ez a böngésző nem tud beépítetten diktálni. Használd a billentyűzet 🎤 gombját.'); return; }
+  spkStop();
+  const inp = $('inp');
+  micWant = true; micUI(true);
+  const run = () => {
+    micBase = inp.value && !/\s$/.test(inp.value) ? inp.value + ' ' : inp.value; micFinal = '';
+    rec = new SR(); rec.lang = SPEECH_LANG; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 1;
+    rec.onresult = ev => {
+      let fin = '', tmp = '';
+      for (let i = 0; i < ev.results.length; i++) { const r = ev.results[i]; if (r.isFinal) fin += r[0].transcript; else tmp += r[0].transcript; }
+      inp.value = micBase + fin + tmp; autoGrow();
+    };
+    rec.onerror = ev => {
+      const e = ev && ev.error;
+      if (e === 'no-speech' || e === 'aborted') return;
+      micWant = false; micUI(false);
+      if (e === 'not-allowed') toast('A mikrofon nincs engedélyezve ennél az oldalnál (a böngésző lakat ikonjánál engedélyezhető).');
+      else if (e === 'service-not-allowed' || e === 'network' || e === 'language-not-supported') toast('Ebben a böngészőben nem működik a beépített diktálás (Chrome-ban igen). Használd a billentyűzet 🎤 gombját.');
+      else toast('Diktálási hiba: ' + (e || 'ismeretlen'));
+    };
+    rec.onend = () => {
+      inp.value = inp.value.replace(/\s+$/, '') + (inp.value.trim() ? ' ' : ''); autoGrow();
+      if (micWant) { try { run(); } catch (e) { micStop(); } } else micUI(false);
+    };
+    rec.start();
+  };
+  try { run(); } catch (e) { micStop(); toast('A diktálás nem indult el.'); }
+}
+$('bMic').addEventListener('click', () => { if (micWant) micStop(); else micStart(); });
+
+const hasTTS = 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
+let spkOn = false;
+function spkUI(on) { spkOn = on; $('bSpk').classList.toggle('on', on); $('bSpk').textContent = on ? '⏹' : '🔊'; }
+function spkStop() { if (hasTTS) { try { speechSynthesis.cancel(); } catch (e) {} } spkUI(false); }
+function speakable(md) {
+  return String(md || '')
+    .replace(/```[\s\S]*?```/g, ' (kódrészlet) ')
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/https?:\/\/\S+/g, ' ')
+    .replace(/^\s*\|?[\s:|-]{3,}\|?\s*$/gm, ' ')
+    .replace(/^\s*\|/gm, '').replace(/\|\s*$/gm, '')
+    .replace(/\|/g, ', ')
+    .replace(/^\s{0,3}#{1,6}\s*/gm, '')
+    .replace(/^\s*[-*•]\s+/gm, '')
+    .replace(/[*_~>#]+/g, '')
+    .replace(/[ \t]+/g, ' ').replace(/\n{2,}/g, '\n').trim();
+}
+function speechChunks(t, max = 180) {
+  const out = []; let cur = '';
+  for (const part of t.split(/(?<=[.!?…:;\n])\s*/)) {
+    if (!part) continue;
+    if ((cur + ' ' + part).length > max && cur) { out.push(cur); cur = part; } else cur = cur ? cur + ' ' + part : part;
+    while (cur.length > max * 1.6) { const k = cur.lastIndexOf(' ', max); const cut = k > 20 ? k : max; out.push(cur.slice(0, cut)); cur = cur.slice(cut).trim(); }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+function spkStart() {
+  if (!hasTTS) { toast('Ez a böngésző nem tud felolvasni.'); return; }
+  const id = curPanelId(); if (id == null) return;
+  const last = [...getConvo(id).view].reverse().find(v => v.role === 'ai');
+  if (!last || !last.text) { toast('Ebben az ablakban még nincs válasz.'); return; }
+  const chunks = speechChunks(speakable(last.text)); if (!chunks.length) return;
+  if (micWant) micStop();
+  try { speechSynthesis.cancel(); } catch (e) {}
+  const voices = (speechSynthesis.getVoices && speechSynthesis.getVoices()) || [];
+  const hu = voices.find(v => /^hu/i.test(v.lang));
+  if (voices.length && !hu) toast('Nincs magyar hang a telefonon, ezért a felolvasás idegenül szólhat (Android: Beállítások › Szövegfelolvasó).');
+  spkUI(true);
+  chunks.forEach((c, i) => {
+    const u = new SpeechSynthesisUtterance(c); u.lang = SPEECH_LANG; if (hu) u.voice = hu; u.rate = 1;
+    if (i === chunks.length - 1) { u.onend = () => spkUI(false); u.onerror = () => spkUI(false); }
+    else u.onerror = () => spkUI(false);
+    speechSynthesis.speak(u);
+  });
+}
+$('bSpk').addEventListener('click', () => { if (spkOn) spkStop(); else spkStart(); });
+window.addEventListener('pagehide', () => { spkStop(); micStop(); });
 $('inp').addEventListener('keydown', e => {
   if (e.key !== 'Enter' || e.shiftKey) return;
   if (matchMedia('(pointer:fine)').matches || e.ctrlKey || e.metaKey) { e.preventDefault(); if (!busy) send(); }
