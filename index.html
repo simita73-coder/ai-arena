@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>AI-Aréna Web v1.9</title>
+<title>AI-Aréna Web v1.9.1</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -130,7 +130,7 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ AI-Aréna <small>Web v1.9</small></div>
+  <div class="brand">⚔️ AI-Aréna <small>Web v1.9.1</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
@@ -784,7 +784,8 @@ async function callGemini(slot, hist, t, sys, signal) {
   if (t.search) notes.push((gm.webSearchQueries || []).length ? searchNote(gm.webSearchQueries.length) : 'nem keresett a weben');
   const sources = cleanSources((gm.groundingChunks || []).map(g => g.web && { url: g.web.uri, title: g.web.title }).filter(Boolean));
   const gOut = (u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0);
-  return { text, usage: tokStr(u.promptTokenCount, gOut), tin: u.promptTokenCount, tout: gOut, note: notes.join(' · '), sources };
+  const gIn = (u.promptTokenCount || 0) + (u.toolUsePromptTokenCount || 0);   // a webkeresés találatai külön számlálóban vannak, de bemenetként számolódnak
+  return { text, usage: tokStr(gIn, gOut), tin: gIn, tout: gOut, note: notes.join(' · '), sources };
 }
 
 // A lekérdezett listákból kiszűrjük, ami nem szöveges csevegésre való (hang, kép, keresés, robotika stb.)
