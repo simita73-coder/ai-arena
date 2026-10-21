@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>AI-Aréna Web v1.7.3</title>
+<title>AI-Aréna Web v1.8</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -88,12 +88,20 @@ body.full .fback{display:block;margin:4px 8px 24px;width:calc(100% - 16px);paddi
 .att span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .att button{padding:0 6px;border:0;background:none;font-size:16px}
 .crow{display:flex;flex-direction:column;gap:6px}
-.brow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.brow{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}
+.tools{display:flex;gap:6px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:2px 0}
+.tools::-webkit-scrollbar{display:none}
+.tools>*{flex:0 0 auto}
+.eff{position:relative}
+.bd{position:absolute;right:2px;bottom:2px;font:700 10px/1 system-ui,sans-serif;font-style:normal;background:var(--ok);color:#fff;border-radius:6px;padding:1px 4px}
+.effopt{display:block;width:100%;text-align:left;margin-bottom:6px;padding:10px 12px}
+.effopt.sel{background:var(--ok);border-color:var(--ok);color:#fff}
+.effopt small{display:block;opacity:.8}
 .modebtn{min-width:40px;min-height:40px;padding:0;font-size:18px;white-space:nowrap}
 .modebtn.m-g{background:#1565c0;border-color:#1565c0;color:#fff}
 .modebtn.m-t{background:#6a1b9a;border-color:#6a1b9a;color:#fff}
 .modebtn.m-k{background:#37474f;border-color:#37474f;color:#fff}
-.brow .send{margin-left:auto;min-width:0;padding:0 9px}
+.brow .send{flex:0 0 auto;margin-left:0;min-width:0;padding:0 9px}
 .crow textarea{width:100%;min-width:0;resize:none;max-height:140px;background:var(--in);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .ic{min-width:40px;min-height:40px;font-size:18px}
 .send{min-height:40px;background:var(--ok);border-color:var(--ok);color:#fff;font-weight:700;padding:0 14px}
@@ -119,7 +127,7 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ AI-Aréna <small>Web v1.7.3</small></div>
+  <div class="brand">⚔️ AI-Aréna <small>Web v1.8</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
@@ -137,17 +145,22 @@ dialog::backdrop{background:#0008}
   <div class="crow">
     <textarea id="inp" rows="1" placeholder="Kérdés…"></textarea>
     <div class="brow">
-      <button id="bAtt" class="ic" title="Kép / PDF / szövegfájl csatolása">📎</button>
-      <button id="bWeb" class="ic" type="button" title="Webes keresés (a küldéskor mindhárom AI-nál)">🌐</button>
-      <button id="bMode" class="modebtn" type="button"></button>
-      <button id="bSum" class="ic" type="button">📝</button>
-      <button id="bTier" class="tier cheap" type="button"></button>
+      <div class="tools">
+        <button id="bAtt" class="ic" title="Kép / PDF / szövegfájl csatolása">📎</button>
+        <button id="bWeb" class="ic" type="button" title="Webes keresés (a küldéskor mindhárom AI-nál)">🌐</button>
+        <button id="bMode" class="modebtn" type="button"></button>
+        <button id="bTeach" class="ic" type="button">🎓</button>
+        <button id="bSum" class="ic" type="button">📝</button>
+        <button id="bTier" class="tier cheap" type="button"></button>
+        <button id="bEff" class="ic eff" type="button"></button>
+      </div>
       <button id="bSend" class="send">Küldés</button>
     </div>
   </div>
   <input id="file" type="file" hidden multiple accept="image/*,application/pdf,.pdf,.txt,.md,.csv,.json,.py,.js,.ts,.html,.css,.xml,.yml,.yaml,.ini,.log,.sql,.bat,.sh,.cfg,.toml">
 </footer>
 <button id="fBack" class="fback" type="button">↩ Vissza a lapozható nézethez</button>
+<dialog id="effDlg" style="width:min(380px,94vw)"><div class="dlg-in"><div class="dlg-body"><h2>🎚 Claude effort</h2><p class="note">Azt szabályozza, mennyit gondolkodik és dolgozik a Claude a válaszon. Minden módban és mindkét modellszinten érvényes. Csak a Claude-ra hat. Magasabb szint: alaposabb, de lassabb és drágább válasz.</p><div id="effList"></div></div><div class="dlg-foot"><button type="button" id="effClose">Bezár</button></div></div></dialog>
 <dialog id="pinDlg" style="width:min(340px,92vw)"><div class="dlg-in"><div class="dlg-body"><h2>🔒 PIN</h2><p id="pinMsg" class="note"></p><input id="pinIn" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" style="width:100%;font-size:26px;letter-spacing:10px;text-align:center;background:var(--in);border:1px solid var(--line);border-radius:10px;padding:8px"><p id="pinErr" class="note" style="color:var(--err);min-height:1.3em;margin:8px 0 0"></p></div><div class="dlg-foot"><button type="button" id="pinCancel">Mégse</button><button type="button" id="pinOk" class="send">OK</button></div></div></dialog>
 <dialog id="dlg"><div class="dlg-in"><div id="dlgBody" class="dlg-body"></div><div class="dlg-foot"><button type="button" id="dCancel">Mégse</button><button type="button" id="dSave" class="send">Mentés</button></div></div></dialog>
 
@@ -186,6 +199,16 @@ const MODE_CLS = { 'Gyors': 'm-g', 'Gondolkodó': 'm-t', 'Kódoló': 'm-k' };
 const MODE_INFO = { 'Gyors': 'rövid, segítőkész válasz', 'Gondolkodó': 'először a lényeg, utána részletesen', 'Kódoló': 'tiszta kód' };
 const SUM_SYS = 'Összefoglaló asszisztens vagy. Egy kérdést és több MI válaszát kapod. Magyarul, tömören és jól tagoltan írd meg: 1) Közös rész: miben értenek egyet. 2) Eltérések: melyik MI mit mond másképp (nevezd meg őket). 3) Ellenőrizendő: ahol a tények vagy számok eltérnek, vagy valami bizonytalan. 4) Javasolt végső válasz a kérdésre, 2-5 mondatban. Ne ismételd meg a teljes válaszokat, és ne találj ki olyan tényt, ami nincs a válaszokban.';
 const MODE_HINT = { 'Gondolkodó': 'Gondolkodó (lényeg, majd részletek)' };
+const EFFORTS = [
+  ['auto', 'Alapértelmezett', 'a modell saját beállítása (semmit sem küld)'],
+  ['low', 'Alacsony', 'gyors és olcsó'],
+  ['medium', 'Közepes', 'kiegyensúlyozott'],
+  ['high', 'Magas', 'alaposabb, lassabb'],
+  ['xhigh', 'Nagyon magas', 'sokat gondolkodik, drága'],
+  ['max', 'Maximum', 'leglassabb és legdrágább']
+];
+const EFF_MIN_TOKENS = { high: 16000, xhigh: 32000, max: 32000 };   // a gondolkodás is beleszámít a válaszhosszba
+const TEACH_SYS = 'Tanár módban vagy: a felhasználó tanul (lehet, hogy gyerek). Magyarul, egyszerű, rövid mondatokkal, lépésenként magyarázz. Elsőként vezesd rá a tanulót a megoldásra kérdésekkel és apró tippekkel, ne add meg azonnal a kész megoldást. Ha kéri vagy elakad, mutasd meg a megoldást lépésről lépésre, és magyarázd el, miért úgy. Ellenőrizd, hogy érti-e, és dicsérd a jó lépéseket.';
 const SEARCH_HINT = ' Ha a kérdéshez friss vagy ellenőrizendő információ kell, használd a webes keresést.';
 const TIERS = { strong: { icon: '💪', label: 'Erős' }, cheap: { icon: '💰', label: 'Olcsó' } };
 
@@ -203,6 +226,11 @@ function defaults() {
     tier: 'cheap',
     search: false,
     sum: true,
+    effort: 'auto',
+    teacher: false,
+    bal: { gemini: null, openai: null, anthropic: null },
+    spend: { day: '', d: 0, month: '', m: 0 },
+    prices: {},
     lock: { hash: '', salt: '', limit: 10, until: 0, fails: 0 },
     usage: { day: '', n: 0, unlocks: 0 },
     sumAI: { provider: 'anthropic', model: 'claude-sonnet-5-5' },
@@ -224,6 +252,11 @@ function loadSettings() {
       if (raw.tier === 'strong' || raw.tier === 'cheap') d.tier = raw.tier;
       d.search = raw.search === true;
       d.sum = raw.sum !== false;
+      if (EFFORTS.some(x => x[0] === raw.effort)) d.effort = raw.effort;
+      d.teacher = raw.teacher === true;
+      if (raw.bal && typeof raw.bal === 'object') Object.keys(d.bal).forEach(k => { if (typeof raw.bal[k] === 'number' && isFinite(raw.bal[k])) d.bal[k] = raw.bal[k]; });
+      if (raw.spend && typeof raw.spend === 'object') d.spend = { day: String(raw.spend.day || ''), d: +raw.spend.d || 0, month: String(raw.spend.month || ''), m: +raw.spend.m || 0 };
+      if (raw.prices && typeof raw.prices === 'object') Object.keys(raw.prices).forEach(k => { const p = raw.prices[k]; if (Array.isArray(p) && isFinite(+p[0]) && isFinite(+p[1])) d.prices[k] = [+p[0], +p[1]]; });
       if (raw.lock && typeof raw.lock === 'object') {
         const L = raw.lock, lim = Math.floor(+L.limit);
         d.lock = { hash: typeof L.hash === 'string' ? L.hash : '', salt: typeof L.salt === 'string' ? L.salt : '', limit: lim >= 0 && lim <= 999 ? lim : 10, until: +L.until || 0, fails: +L.fails || 0 };
@@ -260,6 +293,42 @@ let busy = false;
 let asking = false;
 let controllers = [];
 const getConvo = id => convo[id] || (convo[id] = { history: [], view: [] });
+
+/* ============ Költség- és egyenlegbecslő ============ */
+const PRICES = {   // USD / 1 millió token [bemenet, kimenet]; becslés, a GPT-6 árak nem hivatalos forrásból valók
+  'claude-fable-5-1': [10, 50], 'claude-opus-5-5': [4, 20], 'claude-sonnet-5-5': [2, 10], 'claude-haiku-5-5': [0.10, 0.50],
+  'gemini-3.1-pro-preview': [2, 12], 'gemini-3.5-flash-lite': [0.30, 2.50], 'gemini-3.1-flash-lite': [0.25, 1.50],
+  'gpt-6-astra': [10, 50], 'gpt-6.1-sol': [2, 10], 'gpt-6-sol': [2, 10], 'gpt-6-luna': [0.10, 0.50]
+};
+function priceOf(model) {
+  const id = String(model || '').toLowerCase().replace(/^models\//, '').replace(/^gemini\//, '');
+  if (S.prices && S.prices[id]) return S.prices[id];
+  const now = Date.now();
+  if (id === 'gemini-3.8-flash') return now >= Date.UTC(2027, 0, 1) ? [1.50, 7.50] : [0.75, 3.75];
+  if (id === 'gemini-4-argon') return now >= Date.UTC(2026, 11, 1) ? [4, 20] : [2, 10];
+  return PRICES[id] || null;
+}
+function costOf(model, r) {
+  const p = priceOf(model);
+  if (!p || r.tin == null || r.tout == null) return null;
+  return (r.tin * p[0] + r.tout * p[1]) / 1e6 + (r.fee || 0);
+}
+const comma = x => String(x).replace('.', ',');
+function usd(v) { const a = Math.abs(v); return (v < 0 ? '-' : '') + '$' + comma(a >= 1 ? a.toFixed(2) : a >= 0.01 ? a.toFixed(3) : a >= 0.0001 ? a.toFixed(4) : a.toFixed(6)); }
+function rollSpend() {
+  const n = new Date(), p = x => String(x).padStart(2, '0'), dk = dayKey(), mk = n.getFullYear() + '-' + p(n.getMonth() + 1);
+  if (S.spend.day !== dk) { S.spend.day = dk; S.spend.d = 0; }
+  if (S.spend.month !== mk) { S.spend.month = mk; S.spend.m = 0; }
+}
+function track(provider, model, r) {
+  const c = costOf(model, r);
+  if (c == null) return 'ár ismeretlen';
+  rollSpend(); S.spend.d += c; S.spend.m += c;
+  let bal = '';
+  if (typeof S.bal[provider] === 'number') { S.bal[provider] -= c; bal = ' · maradt ≈ ' + usd(S.bal[provider]); }
+  saveSettings();
+  return '≈ ' + usd(c) + bal;
+}
 
 /* ============ Gyerekzár: napi limit az erős modellekre + PIN ============ */
 const dayKey = () => { const n = new Date(), p = x => String(x).padStart(2, '0'); return n.getFullYear() + '-' + p(n.getMonth() + 1) + '-' + p(n.getDate()); };
@@ -630,7 +699,7 @@ async function openaiChat(slot, hist, t, sys, signal, key) {
   const res = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: JSON.stringify(body) });
   if (!res.ok) throw await httpError(res);
   const d = await res.json(), ch = d.choices && d.choices[0], u = d.usage || {};
-  return { text: (ch && ch.message && (ch.message.content || ch.message.refusal)) || '', usage: tokStr(u.prompt_tokens, u.completion_tokens), note: ch && ch.finish_reason === 'length' ? 'a válasz elérte a hosszkorlátot' : '' };
+  return { text: (ch && ch.message && (ch.message.content || ch.message.refusal)) || '', usage: tokStr(u.prompt_tokens, u.completion_tokens), tin: u.prompt_tokens, tout: u.completion_tokens, note: ch && ch.finish_reason === 'length' ? 'a válasz elérte a hosszkorlátot' : '' };
 }
 async function openaiResponses(slot, hist, t, sys, signal, key) {
   const imgs = t.files.filter(f => f.kind === 'image'), pdfs = t.files.filter(f => f.kind === 'pdf');
@@ -651,7 +720,7 @@ async function openaiResponses(slot, hist, t, sys, signal, key) {
   if (t.search) notes.push(nSearch ? searchNote(nSearch) : 'nem keresett a weben');
   const sources = cleanSources(out.filter(o => o.type === 'message').reduce((a, o) => a.concat(o.content || []), [])
     .reduce((a, c) => a.concat(c.annotations || []), []).filter(an => an.type === 'url_citation'));
-  return { text, usage: tokStr(u.input_tokens, u.output_tokens), note: notes.join(' · '), sources };
+  return { text, usage: tokStr(u.input_tokens, u.output_tokens), tin: u.input_tokens, tout: u.output_tokens, note: notes.join(' · '), sources };
 }
 
 async function callAnthropic(slot, hist, t, sys, signal) {
@@ -661,7 +730,8 @@ async function callAnthropic(slot, hist, t, sys, signal) {
     .concat(pdfs.map(f => ({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.b64 } })))
     .concat([{ type: 'text', text: t.fullText }]);
   let msgs = hist.map(h => ({ role: h.role, content: h.text })).concat([{ role: 'user', content }]);
-  const body = { model: slot.model, max_tokens: S.maxTokens || 4096, system: sys, messages: msgs };
+  const body = { model: slot.model, max_tokens: Math.max(S.maxTokens || 4096, EFF_MIN_TOKENS[S.effort] || 0), system: sys, messages: msgs };
+  if (S.effort && S.effort !== 'auto') body.output_config = { effort: S.effort };
   if (t.search) body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }];
   let text = '', tin = 0, tout = 0, nSearch = 0, last = null, found = [];
   for (let round = 0; round < 4; round++) {     // pause_turn: a hosszú keresési kört folytatni kell
@@ -682,8 +752,9 @@ async function callAnthropic(slot, hist, t, sys, signal) {
   const notes = [];
   if (last.stop_reason === 'max_tokens') notes.push('a válasz elérte a max. hosszt (⚙-ben emelhető)');
   if (last.stop_reason === 'pause_turn') notes.push('a keresés félbeszakadt, a válasz hiányos lehet');
+  if (S.effort && S.effort !== 'auto') notes.push('effort: ' + S.effort);
   if (t.search) notes.push(nSearch ? searchNote(nSearch) : 'nem keresett a weben');
-  return { text, usage: tokStr(tin, tout), note: notes.join(' · '), sources: cleanSources(found) };
+  return { text, usage: tokStr(tin, tout), tin, tout, fee: nSearch * 0.01, note: notes.join(' · '), sources: cleanSources(found) };
 }
 
 async function callGemini(slot, hist, t, sys, signal) {
@@ -705,7 +776,8 @@ async function callGemini(slot, hist, t, sys, signal) {
   const gm = c.groundingMetadata || {};
   if (t.search) notes.push((gm.webSearchQueries || []).length ? searchNote(gm.webSearchQueries.length) : 'nem keresett a weben');
   const sources = cleanSources((gm.groundingChunks || []).map(g => g.web && { url: g.web.uri, title: g.web.title }).filter(Boolean));
-  return { text, usage: tokStr(u.promptTokenCount, u.candidatesTokenCount), note: notes.join(' · '), sources };
+  const gOut = (u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0);
+  return { text, usage: tokStr(u.promptTokenCount, gOut), tin: u.promptTokenCount, tout: gOut, note: notes.join(' · '), sources };
 }
 
 // A lekérdezett listákból kiszűrjük, ami nem szöveges csevegésre való (hang, kép, keresés, robotika stb.)
@@ -745,7 +817,7 @@ function friendlyError(e) {
 async function runSlot(slot, turn) {
   const c = getConvo(slot.id);
   const eff = Object.assign({}, slot, { model: modelOf(slot) });
-  const sys = (MODES[S.mode] || MODES['Gyors']) + (S.about && S.about.trim() ? '\n\nTudnivalók a felhasználóról (vedd figyelembe a válaszadáskor): ' + S.about.trim() : '') + (turn.search ? SEARCH_HINT : '');   // a küldéskor érvényes modell
+  const sys = (MODES[S.mode] || MODES['Gyors']) + (S.teacher ? '\n\n' + TEACH_SYS : '') + (S.about && S.about.trim() ? '\n\nTudnivalók a felhasználóról (vedd figyelembe a válaszadáskor): ' + S.about.trim() : '') + (turn.search ? SEARCH_HINT : '');   // a küldéskor érvényes modell
   c.view.push({ role: 'user', text: turn.prompt, files: turn.names });
   c.view.push({ role: 'wait' });
   paintBody(slot.id);
@@ -756,7 +828,7 @@ async function runSlot(slot, turn) {
     const r = await PROVIDERS[slot.provider].call(eff, c.history, turn, sys, ctrl.signal);
     c.view = c.view.filter(v => v.role !== 'wait');
     const sec = ((performance.now() - t0) / 1000).toFixed(1);
-    c.view.push({ role: 'ai', model: eff.model, sources: r.sources || [], text: r.text || '(üres válasz)', meta: eff.model + ' · ' + r.usage + ' · ' + sec + ' mp' + (r.note ? ' · ' + r.note : '') });
+    c.view.push({ role: 'ai', model: eff.model, sources: r.sources || [], text: r.text || '(üres válasz)', meta: eff.model + ' · ' + r.usage + ' · ' + sec + ' mp · ' + track(slot.provider, eff.model, r) + (r.note ? ' · ' + r.note : '') });
     c.history.push({ role: 'user', text: turn.prompt + turn.note }, { role: 'assistant', text: r.text });
     res = { ok: true, label: PROVIDERS[slot.provider].label, model: eff.model, text: r.text || '' };
   } catch (e) {
@@ -783,7 +855,7 @@ async function runSummary(turn, oks) {
     const r = await PROVIDERS[P.provider].call(eff, [], sturn, SUM_SYS, ctrl.signal);
     if (pg) pg.sum = 'done';
     const sec = ((performance.now() - t0) / 1000).toFixed(1);
-    c.view.push({ role: 'ai', model: P.model, sources: [], text: r.text || '(üres válasz)', meta: P.model + ' · ' + r.usage + ' · ' + sec + ' mp' + (r.note ? ' · ' + r.note : '') });
+    c.view.push({ role: 'ai', model: P.model, sources: [], text: r.text || '(üres válasz)', meta: P.model + ' · ' + r.usage + ' · ' + sec + ' mp · ' + track(P.provider, P.model, r) + (r.note ? ' · ' + r.note : '') });
   } catch (e) {
     if (pg) pg.sum = 'err';
     c.view.push({ role: 'err', text: '[' + P.model + '] ' + friendlyError(e) });
@@ -850,6 +922,27 @@ $('bSum').addEventListener('click', () => {
   S.sum = !S.sum; saveSettings(); updateSumBtn(); renderDeck();
   toast(S.sum ? '📝 Összefoglaló BE: ' + PROVIDERS[S.sumAI.provider].label + ' · ' + S.sumAI.model : '📝 Összefoglaló KI');
 });
+function updateTeachBtn() { $('bTeach').classList.toggle('on', !!S.teacher); $('bTeach').title = S.teacher ? 'Tanár mód BE – kikapcsolás' : 'Tanár mód KI – bekapcsolás (lépésenként, kérdésekkel vezet)'; }
+$('bTeach').addEventListener('click', () => {
+  S.teacher = !S.teacher; saveSettings(); updateTeachBtn();
+  toast(S.teacher ? '🎓 Tanár mód BE: lépésenként, kérdésekkel vezet, nem adja meg azonnal a megoldást.' : '🎓 Tanár mód KI');
+});
+function updateEffBtn() {
+  const i = EFFORTS.findIndex(x => x[0] === S.effort), b = $('bEff');
+  b.innerHTML = '🎚' + (i > 0 ? '<i class="bd">' + i + '</i>' : '');
+  b.classList.toggle('on', i > 0);
+  b.title = 'Claude effort: ' + EFFORTS[Math.max(i, 0)][1] + ' – koppints a váltáshoz';
+}
+function renderEffList() {
+  $('effList').innerHTML = EFFORTS.map(x => '<button type="button" class="effopt' + (x[0] === S.effort ? ' sel' : '') + '" data-v="' + x[0] + '">' + esc(x[1]) + '<small>' + esc(x[2]) + '</small></button>').join('');
+}
+$('bEff').addEventListener('click', () => { renderEffList(); $('effDlg').showModal(); });
+$('effClose').addEventListener('click', () => $('effDlg').close());
+$('effList').addEventListener('click', e => {
+  const b = e.target.closest('.effopt'); if (!b) return;
+  S.effort = b.dataset.v; saveSettings(); updateEffBtn(); $('effDlg').close();
+  toast('🎚 Claude effort: ' + EFFORTS.find(x => x[0] === S.effort)[1]);
+});
 function updateWebBtn() { $('bWeb').classList.toggle('on', !!S.search); $('bWeb').title = S.search ? 'Webes keresés BE – kikapcsolás' : 'Webes keresés KI – bekapcsolás'; }
 $('bWeb').addEventListener('click', () => {
   S.search = !S.search; saveSettings(); updateWebBtn();
@@ -905,6 +998,11 @@ function modelSelect(field, s) {
   const opts = modelOptions(s.provider, cur).map(m => '<option value="' + esc(m) + '"' + (m === cur ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
   return '<span class="mlbl">' + TIERS[field].icon + ' ' + TIERS[field].label + ' modell</span><select data-f="' + field + '">' + opts + '<option value="__custom">✎ Egyéni modellnév…</option></select>';
 }
+function renderSpendInfo() {
+  const sp = draft.spend, n = new Date(), p = x => String(x).padStart(2, '0');
+  const d = sp.day === dayKey() ? sp.d : 0, m = sp.month === n.getFullYear() + '-' + p(n.getMonth() + 1) ? sp.m : 0;
+  $('spendInfo').textContent = 'Becsült költés: ma ' + usd(d) + ', ebben a hónapban ' + usd(m) + '.';
+}
 function renderLockInfo() {
   const d = draft.usage.day === dayKey() ? draft.usage : { n: 0, unlocks: 0 };
   $('pinState').textContent = draft.lock.hash ? '✔ PIN be van állítva.' : 'Nincs PIN, ezért a zár nem aktív.';
@@ -936,11 +1034,15 @@ function openSettings() {
     '<label class="fld"><span>Új PIN (4 számjegy; üresen hagyva marad a régi)</span><input type="password" id="newPin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="····"></label>' +
     '<p class="note" id="pinState"></p><p class="note" id="useInfo"></p>' +
     '<div class="inl"><button type="button" id="pinDel" class="danger">PIN törlése</button><button type="button" id="useReset">Mai számláló nullázása</button></div>' +
+    '<h3>💵 Költség és egyenleg</h3><p class="note">A válaszok mellé kiírt dollár a tokenszámból és az árakból számolt becslés (a keresés és a kép díját csak részben tartalmazza). Az egyenleg-becslő az itt megadott összegből vonja le a költségeket. A valódi egyenleget a szolgáltató oldalán nézd meg, és ha eltér, itt javítsd ki. Üresen hagyva nem követi. A GPT-6 árak nem hivatalos forrásból valók, ellenőrizd őket.</p><p class="note" id="spendInfo"></p>' +
+    Object.keys(PROVIDERS).map(k => '<label class="fld"><span>' + esc(PROVIDERS[k].label) + ' egyenleg (USD)</span><input type="text" inputmode="decimal" id="bal-' + k + '" data-orig="' + (typeof draft.bal[k] === 'number' ? comma(draft.bal[k].toFixed(2)) : '') + '" value="' + (typeof draft.bal[k] === 'number' ? comma(draft.bal[k].toFixed(2)) : '') + '" placeholder="pl. 12,50"></label>').join('') +
+    '<label class="fld"><span>Egyéni árak (soronként: modell = bemenet / kimenet, USD / 1 millió token)</span><textarea id="prices" rows="3" style="width:100%;background:var(--in);border:1px solid var(--line);border-radius:8px;padding:7px 9px;resize:vertical" placeholder="pl. gpt-6-luna = 0,10 / 0,50">' + esc(Object.keys(draft.prices).map(k => k + ' = ' + comma(draft.prices[k][0]) + ' / ' + comma(draft.prices[k][1])).join('\n')) + '</textarea></label>' +
+    '<div class="inl"><button type="button" id="spendReset">Napi és havi összeg nullázása</button></div>' +
     '<h3>Összefoglaló AI</h3><p class="note">Ez foglalja össze a válaszok közös részeit és különbségeit (legalább két válasz kell hozzá). A főképernyőn a 📝 gombbal kapcsolható be és ki. Az első ablakban jelenik meg.</p><div id="sumBox" class="sbox"></div>' +
     '<h3>Ablakok</h3><p class="note">Mindegyik AI-nak két modellje van: 💪 erős és 💰 olcsó. A főképernyőn a bal felső gombbal váltasz köztük. A módot (⚡ Gyors / 🧠 Gondolkodó / 💻 Kódoló) a beírómező alatti gombbal állítod.</p><div id="rows"></div>' +
     '<div class="inl"><button type="button" id="addSlot">+ Ablak</button><button type="button" id="fetchModels">🔄 Modellek lekérdezése</button></div>' +
     '<div class="inl"><button type="button" id="clearKeys" class="danger">Kulcsok törlése</button></div>';
-  renderRows(); renderSum(); renderLockInfo();
+  renderRows(); renderSum(); renderLockInfo(); renderSpendInfo();
   dlg.showModal();
 }
 function readKeysFromInputs() {
@@ -967,6 +1069,7 @@ dlg.addEventListener('change', e => {
 });
 dlg.addEventListener('click', async e => {
   const t = e.target;
+  if (t.id === 'spendReset') { draft.spend = { day: dayKey(), d: 0, month: '', m: 0 }; renderSpendInfo(); return; }
   if (t.id === 'pinDel') { draft.lock.hash = ''; draft.lock.salt = ''; draft.lock.fails = 0; draft.lock.until = 0; renderLockInfo(); return; }
   if (t.id === 'useReset') { draft.usage = { day: dayKey(), n: 0, unlocks: 0 }; renderLockInfo(); return; }
   if (t.dataset.show) { const el = $('key-' + t.dataset.show); el.type = el.type === 'password' ? 'text' : 'password'; return; }
@@ -999,6 +1102,22 @@ dlg.addEventListener('click', async e => {
 $('dCancel').addEventListener('click', () => dlg.close());
 $('dSave').addEventListener('click', async () => {
   readKeysFromInputs();
+  draft.bal = Object.assign({}, S.bal);
+  for (const k of Object.keys(PROVIDERS)) {
+    const el = $('bal-' + k); if (!el || el.value === el.dataset.orig) continue;
+    const v = el.value.trim().replace(/\s/g, '').replace(',', '.');
+    if (!v) draft.bal[k] = null;
+    else if (isFinite(+v)) draft.bal[k] = +v;
+    else { toast('Az egyenleg szám legyen: ' + PROVIDERS[k].label); return; }
+  }
+  const prices = {};
+  for (const line of $('prices').value.split('\n')) {
+    if (!line.trim()) continue;
+    const m = line.match(/^\s*([\w.\-\/]+)\s*[=:]\s*([\d.,]+)\s*[\/;| ]\s*([\d.,]+)\s*$/);
+    if (!m) { toast('Hibás ársor: ' + line.trim()); return; }
+    prices[m[1].toLowerCase()] = [+m[2].replace(',', '.'), +m[3].replace(',', '.')];
+  }
+  draft.prices = prices;
   const lim = parseInt($('lim').value, 10); draft.lock.limit = lim >= 0 ? Math.min(lim, 999) : 10;
   const np = $('newPin').value.trim();
   if (np) {
@@ -1006,7 +1125,7 @@ $('dSave').addEventListener('click', async () => {
     draft.lock.salt = randSalt(); draft.lock.hash = await hashPin(np, draft.lock.salt); draft.lock.fails = 0; draft.lock.until = 0;
   }
   draft.slots.forEach(s => { const P = PROVIDERS[s.provider]; s.models.strong = s.models.strong || P.strong; s.models.cheap = s.models.cheap || P.cheap; });
-  S = draft; saveSettings(); dlg.close(); renderDeck(); updateTierBtn(); updateModeBtn(); toast('Beállítások elmentve');
+  S = draft; saveSettings(); dlg.close(); renderDeck(); updateTierBtn(); updateModeBtn(); updateTeachBtn(); updateEffBtn(); toast('Beállítások elmentve');
 });
 $('bSet').addEventListener('click', async () => {
   if (lockActive() || (S.lock && S.lock.hash)) {
@@ -1030,6 +1149,8 @@ updateTierBtn();
 updateWebBtn();
 updateModeBtn();
 updateSumBtn();
+updateTeachBtn();
+updateEffBtn();
 if (!S.keys.gemini && !S.keys.openai && !S.keys.anthropic) setTimeout(() => toast('Első lépés: ⚙ → API-kulcsok megadása'), 600);
 })();
 </script>
