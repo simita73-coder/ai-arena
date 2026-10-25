@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>AI-Aréna Web v1.9.2</title>
+<title>AI-Aréna Web v1.9.3</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -124,13 +124,15 @@ dialog::backdrop{background:#0008}
 .inl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}
 .inl input{flex:1;min-width:0}
 .srow,.sbox{border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:8px;display:grid;gap:6px}
-.sline{display:flex;justify-content:space-between;align-items:center}
+.sline{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.sline .mv{min-width:36px;min-height:36px;padding:0}
+.sline .chk{flex:1}
 .chk{display:flex;gap:6px;align-items:center}
 </style>
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ AI-Aréna <small>Web v1.9.2</small></div>
+  <div class="brand">⚔️ AI-Aréna <small>Web v1.9.3</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
@@ -247,7 +249,7 @@ function defaults() {
     maxTokens: 4096,
     models: {},
     nextId: 4,
-    slots: [slotDefault(1, 'gemini'), slotDefault(2, 'openai'), slotDefault(3, 'anthropic')]
+    slots: [slotDefault(1, 'openai'), slotDefault(2, 'anthropic'), slotDefault(3, 'gemini')]
   };
 }
 function loadSettings() {
@@ -1119,6 +1121,8 @@ function renderSum() {
 function renderRows() {
   $('rows').innerHTML = draft.slots.map((s, i) =>
     '<div class="srow" data-i="' + i + '"><div class="sline"><label class="chk"><input type="checkbox" data-f="active"' + (s.active ? ' checked' : '') + '> ' + (i + 1) + '. ablak aktív</label>' +
+    '<button type="button" class="mv" data-mv="' + i + ':-1" title="Feljebb"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+    '<button type="button" class="mv" data-mv="' + i + ':1" title="Lejjebb"' + (i === draft.slots.length - 1 ? ' disabled' : '') + '>▼</button>' +
     '<button type="button" class="danger" data-del="' + i + '">Törlés</button></div>' +
     '<select data-f="provider">' + Object.keys(PROVIDERS).map(k => '<option value="' + k + '"' + (k === s.provider ? ' selected' : '') + '>' + esc(PROVIDERS[k].label) + '</option>').join('') + '</select>' +
     modelSelect('strong', s) + modelSelect('cheap', s) +
@@ -1175,6 +1179,11 @@ dlg.addEventListener('click', async e => {
   if (t.id === 'pinDel') { draft.lock.hash = ''; draft.lock.salt = ''; draft.lock.fails = 0; draft.lock.until = 0; renderLockInfo(); return; }
   if (t.id === 'useReset') { draft.usage = { day: dayKey(), n: 0, unlocks: 0 }; renderLockInfo(); return; }
   if (t.dataset.show) { const el = $('key-' + t.dataset.show); el.type = el.type === 'password' ? 'text' : 'password'; return; }
+  if (t.dataset.mv) {
+    const [i, d] = t.dataset.mv.split(':').map(Number), j = i + d;
+    if (j < 0 || j >= draft.slots.length) return;
+    [draft.slots[i], draft.slots[j]] = [draft.slots[j], draft.slots[i]]; renderRows(); return;
+  }
   if (t.dataset.del !== undefined) {
     if (draft.slots.length <= 1) { toast('Legalább egy ablak maradjon.'); return; }
     draft.slots.splice(+t.dataset.del, 1); renderRows(); return;
