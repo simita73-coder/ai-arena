@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>AI-Aréna Web v1.9.1</title>
+<title>AI-Aréna Web v1.9.2</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -130,7 +130,7 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ AI-Aréna <small>Web v1.9.1</small></div>
+  <div class="brand">⚔️ AI-Aréna <small>Web v1.9.2</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
@@ -273,7 +273,7 @@ function loadSettings() {
       if (MODES[raw.mode]) d.mode = raw.mode;
       else { const fs = Array.isArray(raw.slots) && raw.slots.find(x => x && x.active && MODES[x.mode]); if (fs) d.mode = fs.mode; }
       if (typeof raw.about === 'string') d.about = raw.about.slice(0, 2000);
-      if (raw.keys) Object.keys(d.keys).forEach(k => { if (typeof raw.keys[k] === 'string') d.keys[k] = raw.keys[k]; });
+      if (raw.keys) Object.keys(d.keys).forEach(k => { if (typeof raw.keys[k] === 'string') d.keys[k] = cleanKey(raw.keys[k]); });
       if (raw.maxTokens) d.maxTokens = +raw.maxTokens || 4096;
       if (raw.models && typeof raw.models === 'object') d.models = raw.models;
       if (Array.isArray(raw.slots) && raw.slots.length) {
@@ -291,6 +291,7 @@ function loadSettings() {
   return d;
 }
 const modelOf = s => (s.models && s.models[S.tier]) || PROVIDERS[s.provider][S.tier];
+const cleanKey = k => String(k || '').replace(/[\s\u00A0\u200B-\u200F\u2028\u2029\u2060\uFEFF]/g, '');
 function saveSettings() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { toast('A beállítások mentése nem sikerült.'); } }
 
 let S = loadSettings();
@@ -487,7 +488,7 @@ function viewHtml(view) {
         (v.sources && v.sources.length ? '<div class="src">🌐 Források:<ol>' + v.sources.map(x => '<li><a href="' + esc(x.url) + '" target="_blank" rel="noopener noreferrer">' + esc(x.title) + '</a></li>').join('') + '</ol></div>' : '');
       case 'prog': {
         const ln = i => (i.state === 'wait' ? '<span class="dots"></span>' : i.state === 'ok' ? '✅' : '❌') + ' <b>' + esc(i.label) + '</b> – ' +
-          (i.state === 'wait' ? 'gondolkodik…' : i.state === 'ok' ? 'kész (' + esc(i.sec) + ' mp)' : 'nem sikerült');
+          (i.state === 'wait' ? 'gondolkodik…' : i.state === 'ok' ? 'kész (' + esc(i.sec) + ' mp)' : 'nem sikerült' + (i.why ? '<div class="mut" style="font-size:13px;margin:2px 0 4px 26px">' + esc(i.why.length > 220 ? i.why.slice(0, 220) + '…' : i.why) + '</div>' : ''));
         const sm = { idle: '<span class="mut">📝 Az összefoglaló megvárja a válaszokat…</span>', wait: '<span class="dots"></span> <b>Összefoglaló</b> – készül…',
           done: '✅ <b>Összefoglaló</b> – kész', err: '❌ <b>Összefoglaló</b> – nem sikerült', skip: '⚠️ Összefoglaló kihagyva: legalább két sikeres válasz kell.' };
         return '<div class="prog">' + v.items.map(i => '<div>' + ln(i) + '</div>').join('') + '<div>' + (sm[v.sum] || '') + '</div></div>';
@@ -817,7 +818,11 @@ async function listGemini(key) {
 
 function friendlyError(e) {
   if (e && e.name === 'AbortError') return 'Megszakítva.';
-  if (e instanceof TypeError) return 'Hálózati hiba: nincs kapcsolat, vagy a böngésző letiltotta a kérést (CORS).';
+  if (e instanceof TypeError || (e && e.name === 'TypeError')) {
+    const m = String(e.message || '');
+    if (/ISO-8859-1|non ISO|Invalid character|invalid header|Headers/i.test(m)) return 'Az API-kulcsban érvénytelen (láthatatlan) karakter van. Másold be újra a kulcsot. (' + m + ')';
+    return 'Hálózati hiba: nincs internet, vagy a böngésző / reklámszűrő / privát DNS letiltotta a kérést. (' + (m || 'TypeError') + ')';
+  }
   return (e && e.message) || String(e);
 }
 
@@ -841,11 +846,12 @@ async function runSlot(slot, turn) {
     res = { ok: true, label: PROVIDERS[slot.provider].label, model: eff.model, text: r.text || '' };
   } catch (e) {
     c.view = c.view.filter(v => v.role !== 'wait');
-    c.view.push({ role: 'err', text: '[' + eff.model + '] ' + friendlyError(e) });
+    res.why = friendlyError(e);
+    c.view.push({ role: 'err', text: '[' + eff.model + '] ' + res.why });
   }
   if (turn.prog) {
     const it = turn.prog.items.find(x => x.id === slot.id);
-    if (it) { it.state = res.ok ? 'ok' : 'err'; it.sec = ((performance.now() - t0) / 1000).toFixed(1); }
+    if (it) { it.state = res.ok ? 'ok' : 'err'; it.why = res.why || ''; it.sec = ((performance.now() - t0) / 1000).toFixed(1); }
     paintBody('sum');
   }
   paintBody(slot.id);
@@ -1142,7 +1148,7 @@ function openSettings() {
   dlg.showModal();
 }
 function readKeysFromInputs() {
-  Object.keys(PROVIDERS).forEach(k => { const el = $('key-' + k); if (el) draft.keys[k] = el.value.trim(); });
+  Object.keys(PROVIDERS).forEach(k => { const el = $('key-' + k); if (el) draft.keys[k] = cleanKey(el.value); });
   const ab = $('about'); if (ab) draft.about = ab.value.trim().slice(0, 2000);
   const mt = parseInt($('maxTok').value, 10); draft.maxTokens = mt >= 256 ? mt : 4096;
 }
@@ -1198,6 +1204,8 @@ dlg.addEventListener('click', async e => {
 $('dCancel').addEventListener('click', () => dlg.close());
 $('dSave').addEventListener('click', async () => {
   readKeysFromInputs();
+  const badKey = Object.keys(PROVIDERS).find(k => /[^\x21-\x7E]/.test(draft.keys[k] || ''));
+  if (badKey) { toast('A(z) ' + PROVIDERS[badKey].label + ' kulcsban ékezetes vagy furcsa karakter van. Másold be újra közvetlenül a szolgáltató oldaláról.'); return; }
   draft.bal = Object.assign({}, S.bal);
   for (const k of Object.keys(PROVIDERS)) {
     const el = $('bal-' + k); if (!el || el.value === el.dataset.orig) continue;
