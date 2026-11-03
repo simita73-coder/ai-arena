@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>AI-Aréna Web v1.9.3</title>
+<title>AI-Aréna Web v1.10.0</title>
 <style>
 :root{--bg:#1b1d1f;--bar:#111;--panel:#262a2d;--head:#33383c;--fg:#e8efe0;--mut:#9aa5ab;--acc:#4fc3f7;--ok:#2e7d32;--err:#ef5350;--line:#3d4348;--echo:#81d4fa;--code:#15181a;--in:#202325}
 :root[data-theme=light]{--bg:#eceff1;--bar:#fff;--panel:#fff;--head:#e3e8eb;--fg:#15191c;--mut:#5d6b73;--acc:#0b6bb5;--ok:#2e7d32;--err:#c62828;--line:#cfd6db;--echo:#0055cc;--code:#f1f4f6;--in:#fafafa}
@@ -18,8 +18,9 @@ button.danger{color:var(--err)}
 .bar{display:block;background:var(--bar);padding:8px 10px;padding-top:calc(8px + env(safe-area-inset-top));border-bottom:1px solid var(--line)}
 .brand{font-weight:700;font-size:17px}
 .brand small{color:var(--mut);font-weight:400}
-.bar-btns{display:flex;gap:6px;margin-top:6px}
-.bar-btns button{flex:1 1 0;min-width:0;min-height:40px;padding:0;font-size:18px}
+.bar-btns{display:flex;gap:6px;margin-top:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.bar-btns::-webkit-scrollbar{display:none}
+.bar-btns button{flex:1 0 46px;min-width:46px;min-height:40px;padding:0;font-size:18px}
 .bar-btns button svg{display:block;margin:auto}
 .navrow{display:flex;align-items:center;gap:6px;padding:0 0 2px;flex:0 0 auto}
 .chips{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;padding:8px 10px 4px}
@@ -51,7 +52,12 @@ body.full .panel.fp .pbody{overflow:visible}
 body.full .fback{display:block;margin:4px 8px 24px;width:calc(100% - 16px);padding:12px}
 .phead{display:flex;align-items:center;gap:6px;background:var(--head);padding:6px 8px;flex:0 0 auto}
 .pname{font-weight:700;color:var(--acc)}
-.pmodel{color:var(--mut);font-size:12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pmodel{color:var(--mut);font-size:12px;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.psend{margin-left:auto;flex:0 0 auto;display:flex;align-items:center;padding:4px 4px 4px 10px;cursor:pointer}
+.psend input{width:24px;height:24px;margin:0;accent-color:var(--ok);cursor:pointer}
+.panel.off .pbody{opacity:.5}
+.chip.off{opacity:.45}
+.loaded{background:var(--head);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:0 0 12px;font-size:13px;color:var(--mut)}
 .pmode{font-size:11px;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--mut)}
 .phead button{padding:2px 8px;font-size:14px}
 .pbody{flex:1;min-height:0;overflow-y:auto;padding:12px;position:relative;-webkit-overflow-scrolling:touch}
@@ -132,15 +138,16 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header class="bar">
-  <div class="brand">⚔️ AI-Aréna <small>Web v1.9.3</small></div>
+  <div class="brand">⚔️ AI-Aréna <small>Web v1.10.0</small></div>
   <div class="bar-btns">
     <button id="bExp" title="Mentés szövegfájlba">⬇</button>
+    <button id="bLoad" title="Mentett beszélgetés (txt) betöltése – minden bekapcsolt AI megkapja a teljes szöveget, és folytathatod a témát">📂</button>
     <button id="bClear" title="Új beszélgetés (mind)">🗑</button>
-    <button id="bTheme" title="Világos / sötét">🌓</button>
-    <button id="bSet" title="Beállítások" aria-label="Beállítások"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></button>
+    <button id="bReset" title="Csak az aktuális ablak törlése (újraindítása)">↺</button>
     <button id="bCopy" title="Az aktuális ablak utolsó válaszának másolása">📋</button>
     <button id="bFull" title="Teljes oldalas nézet az aktuális ablakról (görgetős képernyőképhez)">⛶</button>
-    <button id="bReset" title="Az aktuális ablak újraindítása">↺</button>
+    <button id="bSet" title="Beállítások" aria-label="Beállítások"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></button>
+    <button id="bTheme" title="Világos / sötét">🌓</button>
   </div>
 </header>
 <div class="navrow"><nav id="chips" class="chips"></nav></div>
@@ -166,6 +173,7 @@ dialog::backdrop{background:#0008}
       <button id="bSend" class="send">Küldés</button>
     </div>
   </div>
+  <input id="loadFile" type="file" hidden accept=".txt,text/plain">
   <input id="file" type="file" hidden multiple accept="image/*,application/pdf,.pdf,.txt,.md,.csv,.json,.py,.js,.ts,.html,.css,.xml,.yml,.yaml,.ini,.log,.sql,.bat,.sh,.cfg,.toml">
 </footer>
 <button id="fBack" class="fback" type="button">↩ Vissza a lapozható nézethez</button>
@@ -301,6 +309,7 @@ const convo = {};                // slotId -> { history:[], view:[] }
 let attachments = [];            // csatolt fájlok a következő küldéshez
 let busy = false;
 let asking = false;
+const skip = new Set();          // a főképernyőn kipipálással kizárt ablakok (csak az aktuális beszélgetésre)
 let controllers = [];
 const getConvo = id => convo[id] || (convo[id] = { history: [], view: [] });
 
@@ -495,6 +504,7 @@ function viewHtml(view) {
           done: '✅ <b>Összefoglaló</b> – kész', err: '❌ <b>Összefoglaló</b> – nem sikerült', skip: '⚠️ Összefoglaló kihagyva: legalább két sikeres válasz kell.' };
         return '<div class="prog">' + v.items.map(i => '<div>' + ln(i) + '</div>').join('') + '<div>' + (sm[v.sum] || '') + '</div></div>';
       }
+      case 'note': return '<div class="loaded">' + esc(v.text) + '</div>';
       case 'err':  return '<div class="err">❌ ' + esc(v.text) + '</div>';
       default: return '';
     }
@@ -524,9 +534,9 @@ function renderDeck() {
   }
   act.forEach(s => {
     const p = document.createElement('section');
-    p.className = 'panel'; p.dataset.id = s.id;
+    p.className = 'panel' + (skip.has(s.id) ? ' off' : ''); p.dataset.id = s.id;
     p.innerHTML = '<div class="phead"><span class="pname">' + esc(PROVIDERS[s.provider].label) + '</span><span class="pmodel">' + esc(modelOf(s)) +
-      '</span><span class="pmode">' + esc(S.mode) + '</span></div><div class="pbody"></div>';
+      '</span><span class="pmode">' + esc(S.mode) + '</span><label class="psend" title="Kipipálva: ez az AI megkapja a következő kérdést. Kipipálás nélkül kihagyja."><input type="checkbox" data-sid="' + s.id + '"' + (skip.has(s.id) ? '' : ' checked') + '></label></div><div class="pbody"></div>';
     deck.appendChild(p);
     paintBody(s.id);
   });
@@ -550,7 +560,7 @@ function iconHtml(p) {
 }
 function renderChips() {
   $('chips').innerHTML = (S.sum ? '<div class="chip" data-id="sum" title="Összefoglaló · ' + esc(S.sumAI.model) + '"><span class="pe">📝</span></div>' : '') + S.slots.filter(s => s.active).map(s =>
-    '<div class="chip" data-id="' + s.id + '" title="' + esc(PROVIDERS[s.provider].label + ' · ' + modelOf(s)) + '">' + iconHtml(s.provider) + '</div>').join('');
+    '<div class="chip' + (skip.has(s.id) ? ' off' : '') + '" data-id="' + s.id + '" title="' + esc(PROVIDERS[s.provider].label + ' · ' + modelOf(s)) + '">' + iconHtml(s.provider) + '</div>').join('');
   if (curId != null) setActiveChip(curId);
 }
 function updateTierBtn() {
@@ -580,6 +590,15 @@ $('chips').addEventListener('click', e => {
   const p = deck.querySelector('.panel[data-id="' + c.dataset.id + '"]');
   setActiveChip(c.dataset.id);
   if (p) p.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+});
+deck.addEventListener('change', e => {
+  const cb = e.target.closest('.psend input'); if (!cb) return;
+  const id = +cb.dataset.sid;
+  if (cb.checked) skip.delete(id); else skip.add(id);
+  const p = cb.closest('.panel'); if (p) p.classList.toggle('off', !cb.checked);
+  renderChips();
+  const sl = S.slots.find(x => x.id === id);
+  toast((cb.checked ? '✅ ' : '⏸ ') + (sl ? PROVIDERS[sl.provider].label : '') + (cb.checked ? ' újra kap kérdést' : ' kihagyva a következő kérdéseknél'));
 });
 deck.addEventListener('click', e => {
   const cp = e.target.closest('.cp');
@@ -660,6 +679,36 @@ $('atts').addEventListener('click', e => {
   attachments.splice(+b.dataset.i, 1); renderAtts();
 });
 $('bAtt').addEventListener('click', () => $('file').click());
+
+/* ============ Mentett beszélgetés betöltése: a teljes szöveg előzményként megy minden aktív AI-nak ============ */
+const LOAD_MAX = 400000;
+const LOAD_INTRO = '[Egy korábban elmentett beszélgetést töltöttem be. Az alábbi a teljes tartalma, benne több AI kérdésekre adott válaszaival. Ez a beszélgetés témája és előzménye: vedd figyelembe, és ebből folytassuk a következő kérdéseimmel.]\n\n';
+$('bLoad').addEventListener('click', () => {
+  if (busy) { toast('Várd meg a válaszokat, vagy nyomd meg a Leállít gombot.'); return; }
+  $('loadFile').click();
+});
+$('loadFile').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  let t = '';
+  try { t = (await f.text()).replace(/\r/g, '').trim(); } catch (err) { toast('Nem sikerült beolvasni a fájlt.'); return; }
+  if (!/KÉRDÉS:/.test(t) || !/VÁLASZ/.test(t)) { toast('Ez nem az AI-Aréna által mentett beszélgetésnek tűnik (nincs benne KÉRDÉS / VÁLASZ).'); return; }
+  if (t.length > LOAD_MAX) { toast('A fájl túl hosszú (legfeljebb ' + Math.round(LOAD_MAX / 1000) + ' ezer karakter tölthető be).'); return; }
+  const act = S.slots.filter(s => s.active);
+  if (!act.length) { toast('Nincs aktív ablak (⚙ Beállítások).'); return; }
+  const kt = Math.max(1, Math.round(t.length / 3000));
+  if (!confirm('Betöltöm: ' + f.name + '\n\n≈ ' + kt + ' ezer token. A jelenlegi beszélgetés törlődik, és mind a ' + act.length + ' bekapcsolt AI megkapja a teljes szöveget előzményként. Ez a szöveg minden további kérdésnél újra elmegy az AI-knak, ezért hosszú fájlnál drágább lehet. Folytassam?')) return;
+  Object.keys(convo).forEach(key => delete convo[key]);
+  skip.clear();
+  const note = '📂 Betöltött beszélgetés: ' + f.name + ' (≈ ' + kt + ' ezer token). Az AI minden további kérdésnél látja, a téma itt folytatható.';
+  act.forEach(s => {
+    const c = getConvo(s.id);
+    c.history.push({ role: 'user', text: LOAD_INTRO + t }, { role: 'assistant', text: 'Rendben, átolvastam a korábbi beszélgetést. Folytathatjuk.' });
+    c.view.push({ role: 'note', text: note });
+  });
+  renderDeck();
+  toast('📂 Betöltve: ' + act.length + ' AI megkapta a beszélgetést.');
+});
 $('file').addEventListener('change', async e => { await addFiles(e.target.files); e.target.value = ''; });
 
 /* ============ Szolgáltatók ============ */
@@ -887,8 +936,8 @@ async function send() {
   if (busy) { controllers.forEach(c => c.abort()); return; }
   const text = $('inp').value.trim();
   if (!text && !attachments.length) return;
-  const act = S.slots.filter(s => s.active);
-  if (!act.length) { toast('Nincs aktív ablak (⚙ Beállítások).'); return; }
+  const act = S.slots.filter(s => s.active && !skip.has(s.id));
+  if (!act.length) { toast(S.slots.some(s => s.active) ? 'Minden AI ki van pipálva, jelölj ki legalább egyet.' : 'Nincs aktív ablak (⚙ Beállítások).'); return; }
   if (asking) return;
   if (lockActive() && S.tier === 'strong') {
     rollDay();
@@ -1068,7 +1117,7 @@ $('bTheme').addEventListener('click', () => {
 $('bClear').addEventListener('click', () => {
   if (busy) { toast('Várd meg a válaszokat, vagy nyomd meg a Leállít gombot.'); return; }
   if (!confirm('Új beszélgetés indul, minden ablak előzménye törlődik. Folytassam?')) return;
-  Object.keys(convo).forEach(k => delete convo[k]); renderDeck();
+  Object.keys(convo).forEach(k => delete convo[k]); skip.clear(); renderDeck();
 });
 $('bExp').addEventListener('click', () => {
   const now = new Date(), pad = n => String(n).padStart(2, '0');
@@ -1084,7 +1133,7 @@ $('bExp').addEventListener('click', () => {
   if (!out) { toast('Még nincs mit menteni.'); return; }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([out], { type: 'text/plain;charset=utf-8' }));
-  a.download = 'Mentett_Beszelgetesek_' + stamp.slice(0, 10) + '.txt';
+  a.download = 'Mentett_Beszelgetesek_' + now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + '_' + pad(now.getHours()) + '-' + pad(now.getMinutes()) + '-' + pad(now.getSeconds()) + '.txt';
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
 
